@@ -25,7 +25,7 @@ export interface Settings {
   /** 冲突策略:ask = 手动同步时询问;server = 静默采用服务器版本。 */
   conflictPolicy: "ask" | "server";
   lastSync?: LastSyncInfo;
-  accent: "ios" | "theme" | string;
+  accent: "ios" | "theme" | (string & {});
   weekStart: 0 | 1;
   remindersEnabled: boolean;
   injectEnabled: boolean;
@@ -142,11 +142,11 @@ export function sanitize(raw: unknown): Settings {
   const calendars = sanitizeCalendars(r.calendars);
   const migrated = calendars.length ? calendars : sanitizeLegacyCalendars(r);
   return {
-    lang: (r.lang === "zh" || r.lang === "en" ? r.lang : "auto") as Settings["lang"],
+    lang: r.lang === "zh" || r.lang === "en" ? r.lang : "auto",
     folder: str(r.folder, DEFAULTS.folder),
-    provider: (r.provider === "icloud" || r.provider === "caldav" || r.provider === "ics"
+    provider: r.provider === "icloud" || r.provider === "caldav" || r.provider === "ics"
       ? r.provider
-      : "none") as Settings["provider"],
+      : "none",
     user: str(r.user, ""),
     password: str(r.password, ""),
     calendars: migrated,

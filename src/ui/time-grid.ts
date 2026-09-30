@@ -353,9 +353,9 @@ export function renderTimeGrid(
       let prevStart = startMin; // 最近一次预览分钟
       let prevEnd = endMin;
       let colHeight = 1;
-      const scroller = colsWrap.parentElement as HTMLElement | null; // .ag2-grid-body(唯一滚动区)
+      const scroller = colsWrap.parentElement; // .ag2-grid-body(唯一滚动区)
       const scrollTop0 = scroller ? scroller.scrollTop : 0;
-      const savedHtml = block.innerHTML; // 拖拽结束后还原标题/时刻
+      const savedChildren = Array.from(block.childNodes); // 拖拽结束后还原标题/时刻子节点
       let ghost: HTMLElement | null = null; // 跨列拖拽幽灵(挂列容器 wrapper)
       let ghostW = 0; // 幽灵宽度 = 单列宽度(px)
 
@@ -366,7 +366,7 @@ export function renderTimeGrid(
         ghost.style.width = `${ghostW}px`;
         ghost.style.setProperty("--block-color", color || "var(--ag-tint)");
         ghost.textContent = occ.event.title;
-        block.style.visibility = "hidden"; // 原块隐藏,由幽灵接管视觉
+        block.addClass("is-drag-source"); // 原块隐藏,由幽灵接管视觉
       };
 
       // 幽灵跟随指针:纵向按 30 分钟预对齐换算 top,横向按指针居中,均钳制在 wrapper 内
@@ -446,7 +446,7 @@ export function renderTimeGrid(
         if (!dragging) return; // 未进入拖拽:原生 click 照常触发 onOpen
         dragging = false;
         block.classList.remove("is-dragging");
-        block.innerHTML = savedHtml; // 还原标题/时刻子节点
+        block.replaceChildren(...savedChildren); // 还原标题/时刻子节点
         const crossCol = ghost !== null; // 本次移动拖拽启用了跨列幽灵
         if (ghost) {
           ghost.remove(); // 幽灵用完即撤(提交后的块重建由 onMove 触发重渲染接管)
@@ -454,7 +454,7 @@ export function renderTimeGrid(
         }
         if (!commit) {
           // 取消(如 pointercancel):还原到原位并恢复可见
-          block.style.visibility = "";
+          block.removeClass("is-drag-source");
           block.style.top = `${((baseStart - win.from * 60) / span) * 100}%`;
           block.style.height = `${((baseEnd - baseStart) / span) * 100}%`;
           return;
@@ -488,7 +488,7 @@ export function renderTimeGrid(
         suppressClick = true; // 抑制随后的原生 click
         deps.onMove(occ, toIso(newStart), toIso(newEnd));
         // 保险:onMove 的实现若未触发重渲染,原块不能停留在隐藏态
-        block.style.visibility = "";
+        block.removeClass("is-drag-source");
       };
       block.addEventListener("pointerup", (e) => endGesture(true, e));
       block.addEventListener("pointercancel", () => endGesture(false));
@@ -500,7 +500,7 @@ export function renderTimeGrid(
   body.addEventListener("scroll", () => {
     savedGridScroll = { key: posKey, top: body.scrollTop };
   }, { passive: true });
-  requestAnimationFrame(() => {
+  window.requestAnimationFrame(() => {
     const maxTop = Math.max(0, body.scrollHeight - body.clientHeight);
     const restored = savedGridScroll && savedGridScroll.key === posKey ? savedGridScroll.top : null;
     const anchorMin = includesToday ? Math.max(0, Math.min(nowMin - 90, 22 * 60)) : 7 * 60;

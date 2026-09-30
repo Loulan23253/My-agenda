@@ -166,7 +166,7 @@
 .ag2-bar { display: flex; align-items: center; gap: 0.6em; padding: 0.22em 0; }
 .ag2-bar-label { flex: 0 0 6.5em; font-size: 0.8em; color: var(--text-normal); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ag2-bar-track { flex: 1 1 auto; height: 6px; border-radius: 999px; background: var(--ag-fill); overflow: hidden; }
-.ag2-bar-fill { height: 100%; border-radius: 999px; transition: width 0.3s ease; }
+.ag2-bar-fill { height: 100%; border-radius: 999px; background: var(--ag-tint, var(--interactive-accent)); transition: width 0.3s ease; }
 .ag2-bar-num { flex: 0 0 auto; font-size: 0.78em; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 
 .ag2-modal .modal-content { padding: 1em 1.2em; }
@@ -294,6 +294,7 @@
 /* ---- 时间网格:块拖拽移动/调长 ---- */
 .ag2-grid-block { cursor: pointer; touch-action: none; user-select: none; }
 .ag2-grid-block.is-dragging { z-index: 5; box-shadow: 0 4px 14px rgba(0,0,0,0.22); opacity: 0.92; }
+.ag2-grid-block.is-drag-source { visibility: hidden; }
 .ag2-grid-block.is-resize-mode { cursor: ns-resize; }
 
 .ag2-drag-ghost { position: absolute; z-index: 6; pointer-events: none; opacity: 0.92; background: color-mix(in srgb, var(--block-color, var(--ag-tint)) 30%, transparent); border-left: 3px solid var(--block-color, var(--ag-tint)); border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,0.22); font-size: 0.68em; font-weight: 600; color: var(--text-normal); padding: 0.18em 0.5em; box-sizing: border-box; overflow: hidden; white-space: nowrap; }

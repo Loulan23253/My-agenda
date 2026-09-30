@@ -10,9 +10,9 @@ export type Http = (opts: { url: string; method: string; body?: string; headers?
 export const TIMEOUT_MS = 30_000;
 
 export const obsidianHttp: Http = async (opts) => {
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  let timer: number | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`${opts.method} ${opts.url} 超时(${TIMEOUT_MS / 1000}s)`)), TIMEOUT_MS);
+    timer = window.setTimeout(() => reject(new Error(`${opts.method} ${opts.url} 超时(${TIMEOUT_MS / 1000}s)`)), TIMEOUT_MS);
   });
   try {
     return await Promise.race([
@@ -20,7 +20,7 @@ export const obsidianHttp: Http = async (opts) => {
       timeout,
     ]);
   } finally {
-    clearTimeout(timer!);
+    window.clearTimeout(timer);
   }
 };
 
@@ -136,7 +136,9 @@ export async function discoverCalendars(
     return { calendars, root };
   }
   if (sawAuthReject) throw new Error(`服务器拒绝登录(HTTP ${lastStatus}):请确认使用 App 专用密码`);
-  if (lastNetworkError && lastStatus === 0) throw lastNetworkError;
+  if (lastNetworkError && lastStatus === 0) {
+    throw lastNetworkError instanceof Error ? lastNetworkError : new Error(String(lastNetworkError));
+  }
   throw new Error(`发现失败(HTTP ${lastStatus})`);
 }
 

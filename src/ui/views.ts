@@ -28,47 +28,39 @@ function hhmm(iso: string): string {
 }
 
 function eventRow(occ: Occurrence, deps: ViewDeps, showDate: boolean, highlight?: string): HTMLElement {
-  const row = document.createElement("div");
-  row.className = "ag2-event-row";
+  const row = createDiv({ cls: "ag2-event-row" });
   row.style.borderLeftColor = categoryColor(occ.event.category ?? "");
   row.addEventListener("click", () => deps.onOpen(occ));
-  const when = document.createElement("div");
-  when.className = "ag2-event-when" + (showDate ? "" : " ag2-when-timeonly");
+  const when = createDiv({ cls: "ag2-event-when" + (showDate ? "" : " ag2-when-timeonly") });
   if (showDate) {
-    const d = document.createElement("span");
-    d.className = "ag2-event-date";
-    d.textContent = dayShort(parseLocal(occ.start), getLang() === "zh");
+    const d = createSpan({ cls: "ag2-event-date", text: dayShort(parseLocal(occ.start), getLang() === "zh") });
     when.appendChild(d);
   }
-  const time = document.createElement("span");
-  time.className = "ag2-event-time";
-  time.textContent = occ.event.isAllDay ? t("panel.allDay") : occ.end ? `${hhmm(occ.start)}–${hhmm(occ.end)}` : hhmm(occ.start);
+  const time = createSpan({
+    cls: "ag2-event-time",
+    text: occ.event.isAllDay ? t("panel.allDay") : occ.end ? `${hhmm(occ.start)}–${hhmm(occ.end)}` : hhmm(occ.start),
+  });
   when.appendChild(time);
   row.appendChild(when);
-  const main = document.createElement("div");
-  main.className = "ag2-event-main";
-  main.createDiv = main.createDiv.bind(main);
-  const title = document.createElement("div");
-  title.className = "ag2-event-title";
+  const main = createDiv({ cls: "ag2-event-main" });
+  const title = createDiv({ cls: "ag2-event-title" });
   appendHighlighted(title, occ.event.title, highlight ?? "");
   main.appendChild(title);
   if (occ.event.place) {
-    const loc = document.createElement("div");
-    loc.className = "ag2-event-place";
+    const loc = createDiv({ cls: "ag2-event-place" });
     appendHighlighted(loc, occ.event.place, highlight ?? "");
     main.appendChild(loc);
   }
   row.appendChild(main);
   if (occ.event.status && occ.event.status !== "confirmed") {
-    const pill = document.createElement("span");
-    pill.className = "ag2-status-pill" + (occ.event.status === "cancelled" ? " is-cancelled" : "");
-    pill.textContent = occ.event.status === "tentative" ? "暂定" : "已取消";
+    const pill = createSpan({
+      cls: "ag2-status-pill" + (occ.event.status === "cancelled" ? " is-cancelled" : ""),
+      text: occ.event.status === "tentative" ? "暂定" : "已取消",
+    });
     row.appendChild(pill);
   }
   if (occ.event.category) {
-    const cat = document.createElement("span");
-    cat.className = "ag2-cat-pill";
-    cat.textContent = occ.event.category;
+    const cat = createSpan({ cls: "ag2-cat-pill", text: occ.event.category });
     cat.style.color = categoryColor(occ.event.category);
     cat.style.background = colorSoft(occ.event.category);
     row.appendChild(cat);
@@ -106,9 +98,7 @@ function appendHighlighted(el: HTMLElement, text: string, query: string): void {
       break;
     }
     if (hit > i) el.appendChild(document.createTextNode(text.slice(i, hit)));
-    const mark = document.createElement("span");
-    mark.className = "ag2-mark";
-    mark.textContent = text.slice(hit, hit + q.length);
+    const mark = createSpan({ cls: "ag2-mark", text: text.slice(hit, hit + q.length) });
     el.appendChild(mark);
     i = hit + q.length;
   }
@@ -333,7 +323,6 @@ export function renderStatsView(container: HTMLElement, events: CalendarEvent[],
       const track = row.createDiv({ cls: "ag2-bar-track" });
       const fill = track.createDiv({ cls: "ag2-bar-fill" });
       fill.style.width = `${(n / bMax) * 100}%`;
-      fill.style.background = "var(--ag-tint)";
       row.createDiv({ cls: "ag2-bar-num", text: String(n) });
     }
   }

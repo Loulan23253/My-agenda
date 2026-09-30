@@ -301,15 +301,19 @@ export function openEventEditor(
   if (existing && onDelete) {
     footer
       .createEl("button", { cls: "ag2-btn ag2-btn-ghost ag2-danger", text: t("editor.delete") })
-      .addEventListener("click", async () => {
-        new Notice(t("editor.confirmDelete"));
-        await onDelete(existing);
-        modal.close();
+      .addEventListener("click", () => {
+        void (async () => {
+          new Notice(t("editor.confirmDelete"));
+          await onDelete(existing);
+          modal.close();
+        })();
       });
   }
-  footer.createEl("button", { cls: "ag2-btn ag2-btn-primary", text: t("editor.save") }).addEventListener("click", async () => {
-    await onSave(readBack());
-    modal.close();
+  footer.createEl("button", { cls: "ag2-btn ag2-btn-primary", text: t("editor.save") }).addEventListener("click", () => {
+    void (async () => {
+      await onSave(readBack());
+      modal.close();
+    })();
   });
   modal.open();
   titleInput.focus();

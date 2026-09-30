@@ -1,6 +1,6 @@
 import esbuild from "esbuild";
 import process from "process";
-import builtins from "builtin-modules";
+import { builtinModules } from "node:module";
 
 const prod = process.argv[2] === "production";
 
@@ -12,7 +12,7 @@ const context = await esbuild.context({
   // Obsidian desktop (Electron) runs a modern Chromium, so es2020 is safe;
   // keep it as the floor so modern dependency syntax (e.g. ical.js) isn't down-leveled.
   target: "es2020",
-  external: ["obsidian", "electron", ...builtins],
+  external: ["obsidian", "electron", ...builtinModules],
   sourcemap: prod ? false : "inline",
   treeShaking: true,
   logLevel: "info",

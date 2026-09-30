@@ -260,25 +260,25 @@ export class SyncEngine {
         const pick = await deps.askConflict({
           title: ev.title,
           mine: describe(ev),
-          theirs: remoteDeleted ? "(服务器已删除)" : describe(remoteItem!.event),
+          theirs: remoteDeleted ? "(服务器已删除)" : describe(remoteItem.event),
         });
         const route = routeById(entry.calendarId) ?? pickRoute(ev);
         if (pick === "mine" && route) {
           if (remoteDeleted) {
             toPush.push({ ev, route, isNew: true }); // 服务器没了 → 重新创建
           } else {
-            toPush.push({ ev, route, ifMatch: remoteItem!.etag, isNew: false });
+            toPush.push({ ev, route, ifMatch: remoteItem.etag, isNew: false });
           }
         } else if (remoteDeleted) {
           dropLocally.add(ev.id);
           journalRemove(deps.journal, ev.id);
           summary.deleted++;
         } else {
-          toApply.push(remoteItem!.event);
+          toApply.push(remoteItem.event);
           journalPut(deps.journal, ev.id, {
             ...entry,
-            etag: remoteItem!.etag,
-            pushedFingerprint: await contentFingerprint(remoteItem!.event),
+            etag: remoteItem.etag,
+            pushedFingerprint: await contentFingerprint(remoteItem.event),
           });
         }
         continue;

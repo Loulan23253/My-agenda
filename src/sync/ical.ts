@@ -4,8 +4,8 @@ import type { CalendarEvent } from "../model/event";
 /** iCalendar 文本 → v2 事件(取 VEVENT;VALARM 映射为提醒分钟)。 */
 export function parseIcsToEvents(icsText: string, idPrefix = ""): CalendarEvent[] {
   const out: CalendarEvent[] = [];
-  const jcal = ICAL.parse(icsText);
-  const comp = new ICAL.Component(jcal);
+  const jcal: unknown = ICAL.parse(icsText);
+  const comp = new ICAL.Component(jcal as any[]);
   for (const vevent of comp.getAllSubcomponents("vevent")) {
     const ev = new ICAL.Event(vevent);
     const uid = ev.uid;

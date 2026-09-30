@@ -291,8 +291,8 @@ export class AgendaPanelView extends ItemView {
     container.empty();
     container.addClass("ag2-panel");
     const accent = this.ctx.settings().accent;
-    if (accent === "theme") container.style.setProperty("--ag-tint", "var(--interactive-accent)");
-    else if (/^#[0-9a-fA-F]{6}$/.test(accent)) container.style.setProperty("--ag-tint", accent);
+    if (accent === "theme") container.setCssProps({ "--ag-tint": "var(--interactive-accent)" });
+    else if (/^#[0-9a-fA-F]{6}$/.test(accent)) container.setCssProps({ "--ag-tint": accent });
     else container.style.removeProperty("--ag-tint");
 
     // 大标题栏
@@ -369,7 +369,7 @@ export class AgendaPanelView extends ItemView {
       this.searchFocused = false;
     });
     if (this.searchFocused) {
-      requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
         searchInput.focus();
         const len = searchInput.value.length;
         searchInput.setSelectionRange(len, len);

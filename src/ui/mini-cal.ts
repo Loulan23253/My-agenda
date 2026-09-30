@@ -1,6 +1,6 @@
 /**
  * 迷你日历(日视图侧栏):双月堆叠、事件圆点、今天描圈、选中填充。
- * 纯原生 DOM(与视图层一致),点击日期由面板接管导航。
+ * 用 Obsidian createDiv 助手构建,点击日期由面板接管导航。
  */
 import { t, getLang } from "../l10n/strings";
 import { addDays, dateKey, startOfWeek, type WeekStartDay } from "../kernel/dates";
@@ -25,25 +25,21 @@ export function renderMiniCal(container: HTMLElement, opts: MiniCalOptions): voi
 
   for (let i = -1; i < count - 1; i++) {
     const first = new Date(opts.anchor.getFullYear(), opts.anchor.getMonth() + i, 1);
-    const wrap = document.createElement("div");
-    wrap.className = "ag2-minical";
+    const wrap = createDiv({ cls: "ag2-minical" });
 
-    const head = document.createElement("div");
-    head.className = "ag2-minical-head";
-    head.textContent =
-      getLang() === "zh"
+    const head = createDiv({
+      cls: "ag2-minical-head",
+      text: getLang() === "zh"
         ? `${first.getFullYear()}年${first.getMonth() + 1}月`
-        : `${MONTHS_EN[first.getMonth()]} ${first.getFullYear()}`;
+        : `${MONTHS_EN[first.getMonth()]} ${first.getFullYear()}`,
+    });
     wrap.appendChild(head);
 
-    const grid = document.createElement("div");
-    grid.className = "ag2-minical-grid";
+    const grid = createDiv({ cls: "ag2-minical-grid" });
     const labels = t("weekday.short").split(",");
     const order = opts.weekStartDay === 0 ? labels : [...labels.slice(1), labels[0]];
     for (const l of order) {
-      const dow = document.createElement("div");
-      dow.className = "ag2-minical-dow";
-      dow.textContent = l;
+      const dow = createDiv({ cls: "ag2-minical-dow", text: l });
       grid.appendChild(dow);
     }
 
@@ -55,19 +51,15 @@ export function renderMiniCal(container: HTMLElement, opts: MiniCalOptions): voi
     const rows = Math.ceil((offset + daysInMonth) / 7);
     for (let r = 0; r < rows * 7; r++) {
       const day = addDays(firstCell, r);
-      const cell = document.createElement("div");
-      cell.className = "ag2-minical-cell";
+      const cell = createDiv({ cls: "ag2-minical-cell" });
       if (day.getMonth() !== m) cell.classList.add("is-other");
-      const num = document.createElement("div");
-      num.className = "ag2-minical-num";
-      num.textContent = String(day.getDate());
+      const num = createDiv({ cls: "ag2-minical-num", text: String(day.getDate()) });
       const k = dateKey(day);
       if (k === todayK) num.classList.add("is-today");
       if (k === selK) num.classList.add("is-selected");
       cell.appendChild(num);
       if (opts.eventDays.has(k) && day.getMonth() === m) {
-        const dot = document.createElement("div");
-        dot.className = "ag2-minical-dot";
+        const dot = createDiv({ cls: "ag2-minical-dot" });
         cell.appendChild(dot);
       }
       cell.addEventListener("click", () => opts.onSelect(day));

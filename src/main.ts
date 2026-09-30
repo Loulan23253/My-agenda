@@ -1,4 +1,4 @@
-import { Plugin, Notice, WorkspaceLeaf, TFile, TAbstractFile } from "obsidian";
+import { Plugin, Notice, WorkspaceLeaf, TFile, TAbstractFile, getLanguage } from "obsidian";
 import { setLang, t } from "./l10n/strings";
 import { sanitize, type Settings } from "./kernel/settings";
 import { SettingsTab } from "./kernel/settings-tab";
@@ -6,7 +6,7 @@ import { VaultFileIO } from "./platform/io";
 import { MonthlyNoteStore, monthOf } from "./data/note-store";
 import { EMPTY_JOURNAL, type SyncJournal } from "./data/journal";
 import type { KeyValueFileIO } from "./data/io";
-import { obsidianHttp, discoverCalendars, type Http } from "./sync/dav";
+import { obsidianHttp, discoverCalendars } from "./sync/dav";
 import { SyncEngine, type CalendarRoute } from "./sync/engine";
 import { parseIcsToEvents } from "./sync/ical";
 import { buildIcs } from "./core/ics-export";
@@ -39,7 +39,7 @@ export default class MyAgendaPluginV2 extends Plugin {
 
   async onload(): Promise<void> {
     this.settings = sanitize(await this.loadData());
-    this.io = new VaultFileIO(this.app.vault);
+    this.io = new VaultFileIO(this.app.vault, this.app.fileManager);
     this.notes = new MonthlyNoteStore(this.io, this.settings.folder);
     await this.loadJournal();
     setLang(this.resolveLang());
@@ -103,7 +103,8 @@ export default class MyAgendaPluginV2 extends Plugin {
 
   private resolveLang(): "zh" | "en" {
     if (this.settings.lang !== "auto") return this.settings.lang;
-    const locale = (window.localStorage.getItem("language") ?? "en").toLowerCase();
+    // Obsidian 1.9 起提供 getLanguage();旧版本回退到系统语言(避免 localStorage:弹窗窗口读不到)
+    const locale = (typeof getLanguage === "function" ? getLanguage() : navigator.language).toLowerCase();
     return locale.startsWith("zh") ? "zh" : "en";
   }
 
@@ -190,7 +191,7 @@ export default class MyAgendaPluginV2 extends Plugin {
         this.syncState = "ok";
       } else {
         const engine = new SyncEngine({
-          http: obsidianHttp as Http,
+          http: obsidianHttp,
           routes,
           notes: this.notes,
           journal: this.journal,
@@ -376,7 +377,7 @@ export default class MyAgendaPluginV2 extends Plugin {
         new Notice(t("notice.needCreds"), 10000);
         return;
       }
-      const { calendars, root } = await discoverCalendars(obsidianHttp as Http, {
+      const { calendars, root } = await discoverCalendars(obsidianHttp, {
         user: this.settings.user,
         pass: this.settings.password,
       });
@@ -634,7 +635,7 @@ export default class MyAgendaPluginV2 extends Plugin {
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise<void>((r) => setTimeout(r, ms));
+  return new Promise<void>((r) => window.setTimeout(r, ms));
 }
 
 const NETWORK_RE = /超时|timeout|ECONN|network|failed to fetch|fetch failed|ENOTFOUND|ERR_/i;
