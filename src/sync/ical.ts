@@ -5,7 +5,7 @@ import type { CalendarEvent } from "../model/event";
 export function parseIcsToEvents(icsText: string, idPrefix = ""): CalendarEvent[] {
   const out: CalendarEvent[] = [];
   const jcal: unknown = ICAL.parse(icsText);
-  const comp = new ICAL.Component(jcal as any[]);
+  const comp = new ICAL.Component(jcal as string | unknown[]);
   for (const vevent of comp.getAllSubcomponents("vevent")) {
     const ev = new ICAL.Event(vevent);
     const uid = ev.uid;

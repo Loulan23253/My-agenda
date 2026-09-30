@@ -290,6 +290,7 @@ export class AgendaPanelView extends ItemView {
     const container = this.contentEl;
     container.empty();
     container.addClass("ag2-panel");
+    container.parentElement?.addClass("ag2-viewhost"); // 替代 :has 的宿主标记
     const accent = this.ctx.settings().accent;
     if (accent === "theme") container.setCssProps({ "--ag-tint": "var(--interactive-accent)" });
     else if (/^#[0-9a-fA-F]{6}$/.test(accent)) container.setCssProps({ "--ag-tint": accent });

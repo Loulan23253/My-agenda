@@ -186,6 +186,8 @@ export function renderTimeGrid(
   deps: TimeGridDeps,
   between?: (grid: HTMLElement) => void,
 ): void {
+  // 类标记替代 :has 选择器(审核性能建议):上层 .ag2-body 据此切换网格布局
+  container.closest(".ag2-body")?.addClass("ag2-has-timegrid");
   const win = WIN;
   const hours = win.to - win.from;
   const span = hours * 60;

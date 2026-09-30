@@ -1,11 +1,11 @@
-import { TFile, TFolder, normalizePath, Vault, type FileManager } from "obsidian";
+import { TFile, TFolder, normalizePath, Vault, FileManager } from "obsidian";
 import type { KeyValueFileIO } from "../data/io";
 
 /** Obsidian vault 实现:兼容索引滞后(用 adapter 兜底)。 */
 export class VaultFileIO implements KeyValueFileIO {
   constructor(
     private readonly vault: Vault,
-    private readonly fileManager?: FileManager,
+    private readonly fileManager: FileManager,
   ) {}
 
   async readText(path: string): Promise<string | null> {
@@ -34,11 +34,9 @@ export class VaultFileIO implements KeyValueFileIO {
   async remove(path: string): Promise<void> {
     const p = normalizePath(path);
     const f = this.vault.getAbstractFileByPath(p);
-    if (f instanceof TFile) {
-      // trashFile 尊重用户的删除偏好(系统回收站/库内 .trash);旧 API 不可用时回退
-      if (this.fileManager) await this.fileManager.trashFile(f);
-      else await this.vault.trash(f, true);
-    } else if (await this.vault.adapter.exists(p)) await this.vault.adapter.remove(p);
+    // trashFile 尊重用户的删除偏好(系统回收站/库内 .trash)
+    if (f instanceof TFile) await this.fileManager.trashFile(f);
+    else if (await this.vault.adapter.exists(p)) await this.vault.adapter.remove(p);
   }
 
   async listFiles(dir: string): Promise<string[]> {

@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, PluginSettingTab, Setting, type SettingDefinitionItem, type SettingDefinitionGroup, type SettingGroupItem } from "obsidian";
 import { setCategoryColors } from "../ui/palette";
 import { t } from "../l10n/strings";
 import type MyAgendaPluginV2 from "../main";
@@ -239,5 +239,102 @@ export class SettingsTab extends PluginSettingTab {
         await this.plugin.saveSettings();
       }),
     );
+  }
+
+  // —— 1.13+ 声明式设置:注册进设置搜索;1.12 及以下仍走 display()。 ——
+
+  private groupOf(heading: string, items: SettingGroupItem[]): SettingDefinitionGroup {
+    return { type: "group", heading, items };
+  }
+
+  getSettingDefinitions(): SettingDefinitionItem[] {
+    return [
+      this.groupOf(t("settings.section.sync"), [
+        { name: t("settings.lang"), control: { type: "dropdown", key: "lang", options: { auto: "Auto", zh: "简体中文", en: "English" } } },
+        { name: t("settings.provider"), control: { type: "dropdown", key: "provider", options: { none: t("settings.provider.none"), icloud: t("settings.provider.icloud"), caldav: t("settings.provider.caldav"), ics: t("settings.provider.ics") } } },
+        { name: t("settings.user"), control: { type: "text", key: "user" } },
+        {
+          name: t("settings.password"),
+          searchable: false,
+          render: (setting: Setting) => {
+            setting.setName(t("settings.password"));
+            setting.addText((x) => {
+              x.inputEl.type = "password";
+              x.setValue(this.plugin.settings.password).onChange(async (v) => {
+                this.plugin.settings.password = v.trim();
+                await this.plugin.saveSettings();
+              });
+            });
+          },
+        },
+        {
+          name: t("settings.calendars"),
+          searchable: false,
+          visible: () => this.plugin.settings.provider === "icloud",
+          render: (setting: Setting) => {
+            setting.setName(t("settings.calendars")).setDesc(this.plugin.settings.calendars.map((c) => `${c.enabled ? "☑" : "☐"} ${c.name || c.url}`).join("  ") || t("settings.calUrl"));
+            setting.addExtraButton((b) => b.setIcon("search").setTooltip(t("settings.fetchCalendars")).onClick(() => void this.plugin.discover()));
+          },
+        },
+        {
+          name: t("settings.calUrl"),
+          searchable: false,
+          visible: () => this.plugin.settings.provider === "ics",
+          control: { type: "text", key: "icsUrl" },
+        },
+        { name: t("settings.autoSync"), control: { type: "dropdown", key: "autoSyncMinutes", options: Object.fromEntries([0, 5, 15, 30, 60].map((v) => [String(v), v === 0 ? t("settings.autoSync.off") : `${v} min`])) } },
+        { name: t("settings.conflictPolicy"), control: { type: "dropdown", key: "conflictPolicy", options: { ask: t("settings.conflictPolicy.ask"), server: t("settings.conflictPolicy.server") } } },
+      ]),
+      this.groupOf(t("settings.section.appearance"), [
+        { name: t("settings.accent"), control: { type: "dropdown", key: "accent", options: { ios: t("settings.accent.ios"), theme: t("settings.accent.theme"), custom: t("settings.accent.custom") } } },
+        { name: t("settings.weekStart"), control: { type: "dropdown", key: "weekStart", options: { "1": t("settings.weekStart.mon"), "0": t("settings.weekStart.sun") } } },
+      ]),
+      this.groupOf(t("settings.section.inject"), [
+        {
+          name: t("cmd.inject"),
+          desc: t("inject.openFirst"),
+          searchable: false,
+          render: (setting: Setting) => {
+            setting.setName(t("cmd.inject")).setDesc(t("inject.openFirst"));
+            setting.addButton((b) => b.setButtonText(t("cmd.inject")).onClick(() => void this.plugin.injectCommand()));
+          },
+        },
+        { name: t("settings.inject.enable"), control: { type: "toggle", key: "injectEnabled" } },
+        { name: t("settings.inject.marker"), control: { type: "text", key: "injectMarker" } },
+        { name: t("settings.inject.folder"), control: { type: "text", key: "injectFolder" } },
+        { name: t("settings.reminders"), control: { type: "toggle", key: "remindersEnabled" } },
+        { name: "存储文件夹", control: { type: "text", key: "folder" } },
+      ]),
+      this.groupOf(t("settings.section.defaults"), [
+        { name: t("settings.defaultCategory"), control: { type: "text", key: "defaultCategory" } },
+        { name: t("settings.defaultReminder"), control: { type: "text", key: "defaultReminderMinutes" } },
+        { name: t("settings.security.note.name"), desc: t("settings.security.note.desc") },
+        { name: t("settings.debug.name"), control: { type: "toggle", key: "debugLogging" } },
+      ]),
+    ];
+  }
+
+  getControlValue(key: string): unknown {
+    const s = this.plugin.settings as unknown as Record<string, unknown>;
+    if (key === "autoSyncMinutes") return String(s.autoSyncMinutes);
+    if (key === "weekStart") return String(s.weekStart);
+    if (key === "accent") return ["ios", "theme"].includes(s.accent as string) ? s.accent : "custom";
+    return s[key];
+  }
+
+  async setControlValue(key: string, value: unknown): Promise<void> {
+    const s = this.plugin.settings as unknown as Record<string, unknown>;
+    if (key === "lang") { s.lang = value as Settings["lang"]; await this.plugin.saveSettings(); this.plugin.applyLanguage(); return; }
+    if (key === "autoSyncMinutes") { s.autoSyncMinutes = Number(value); await this.plugin.saveSettings(); this.plugin.restartAutoSync(); return; }
+    if (key === "accent") { s.accent = value === "custom" ? "#007aff" : String(value); await this.plugin.saveSettings(); this.plugin.refreshPanels(); return; }
+    if (key === "weekStart") { s.weekStart = value === "0" ? 0 : 1; await this.plugin.saveSettings(); this.plugin.refreshPanels(); return; }
+    if (key === "folder") { s.folder = String(value).trim() || "Agenda"; await this.plugin.saveSettings(); return; }
+    if (key === "defaultReminderMinutes") {
+      const n = Number.parseInt(String(value), 10);
+      s.defaultReminderMinutes = Number.isFinite(n) ? n : -1;
+      await this.plugin.saveSettings();
+      return;
+    }
+    if (key in s) { s[key] = value; await this.plugin.saveSettings(); }
   }
 }
