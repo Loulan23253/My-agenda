@@ -239,6 +239,13 @@ export class SettingsTab extends PluginSettingTab {
         await this.plugin.saveSettings();
       }),
     );
+
+    // 赞助入口:manifest 提供 fundingUrl 时才显示
+    const funding = String((this.plugin.manifest as unknown as { fundingUrl?: string }).fundingUrl || "");
+    if (funding) {
+      new Setting(containerEl).setName(t("support.name")).setDesc(t("support.desc"))
+        .addButton((b) => b.setButtonText(t("support.button")).setCta().onClick(() => window.open(funding)));
+    }
   }
 
   // —— 1.13+ 声明式设置:注册进设置搜索;1.12 及以下仍走 display()。 ——
@@ -310,6 +317,15 @@ export class SettingsTab extends PluginSettingTab {
         { name: t("settings.defaultReminder"), control: { type: "text", key: "defaultReminderMinutes" } },
         { name: t("settings.security.note.name"), desc: t("settings.security.note.desc") },
         { name: t("settings.debug.name"), control: { type: "toggle", key: "debugLogging" } },
+        {
+          name: t("support.name"),
+          desc: t("support.desc"),
+          visible: () => !!String((this.plugin.manifest as unknown as { fundingUrl?: string }).fundingUrl || ""),
+          render: (setting: Setting) => {
+            setting.setName(t("support.name")).setDesc(t("support.desc"));
+            setting.addButton((b) => b.setButtonText(t("support.button")).setCta().onClick(() => window.open(String((this.plugin.manifest as unknown as { fundingUrl?: string }).fundingUrl || ""))));
+          },
+        },
       ]),
     ];
   }
@@ -318,7 +334,7 @@ export class SettingsTab extends PluginSettingTab {
     const s = this.plugin.settings as unknown as Record<string, unknown>;
     if (key === "autoSyncMinutes") return String(s.autoSyncMinutes);
     if (key === "weekStart") return String(s.weekStart);
-    if (key === "accent") return ["ios", "theme"].includes(s.accent as string) ? s.accent : "custom";
+    if (key === "accent") return ["ios", "theme"].includes(String(s.accent)) ? s.accent : "custom";
     return s[key];
   }
 

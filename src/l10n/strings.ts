@@ -152,6 +152,9 @@ const ZH = {
   "settings.security.note.name": "安全提示",
   "settings.security.note.desc": "账号与 App 专用密码明文保存在插件目录的 data.json 中。请使用 App 专用密码;若用第三方网盘同步整个库,请把该文件加入同步排除列表。",
   "settings.debug.name": "调试日志",
+  "support.name": "支持开发者",
+  "support.desc": "如果 MyAgenda 对你有帮助，请作者喝杯咖啡。",
+  "support.button": "请喝咖啡 ☕",
   "settings.debug.desc": "同步失败时在控制台输出完整请求/响应内容,仅供排查。默认关闭。",
   "weekday.short": "日,一,二,三,四,五,六",
 };
@@ -303,6 +306,9 @@ const EN: Partial<Record<keyof typeof ZH, string>> = {
   "settings.security.note.name": "Security note",
   "settings.security.note.desc": "The account and app-specific password are stored in plain text in data.json. Use an app-specific password; if you sync the whole vault with a third-party cloud, exclude that file from syncing.",
   "settings.debug.name": "Debug logging",
+  "support.name": "Support the developer",
+  "support.desc": "If MyAgenda helps you, buy the author a coffee.",
+  "support.button": "Buy a coffee ☕",
   "settings.debug.desc": "On sync failures, log full request/response bodies to the console for troubleshooting. Off by default.",
   "weekday.short": "Su,Mo,Tu,We,Th,Fr,Sa",
 };
