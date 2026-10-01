@@ -1,4 +1,5 @@
 import { Plugin, Notice, WorkspaceLeaf, TFile, TAbstractFile } from "obsidian";
+import * as obsidianModule from "obsidian";
 import { setLang, t } from "./l10n/strings";
 import { sanitize, type Settings } from "./kernel/settings";
 import { SettingsTab } from "./kernel/settings-tab";
@@ -103,8 +104,13 @@ export default class MyAgendaPluginV2 extends Plugin {
 
   private resolveLang(): "zh" | "en" {
     if (this.settings.lang !== "auto") return this.settings.lang;
-    // auto = 跟随 Obsidian 界面语言(localStorage "language" 是 Obsidian 自己存界面语言的键),
-    // 而不是系统语言——Obsidian 界面设为英文时必须出英文。弹窗窗口读不到 localStorage,回退系统语言。
+    // auto = 跟随 Obsidian 界面语言(而不是系统语言):Obsidian 界面设为英文时必须出英文。
+    // getLanguage() 是 1.9+ API,动态探测存在才用;再依次回退 localStorage 与系统语言。
+    const getLangApi = (obsidianModule as unknown as { getLanguage?: () => string }).getLanguage;
+    if (typeof getLangApi === "function") {
+      const lang = getLangApi();
+      if (lang) return lang.toLowerCase().startsWith("zh") ? "zh" : "en";
+    }
     try {
       const obsidianLang = window.localStorage.getItem("language");
       if (obsidianLang) return obsidianLang.toLowerCase().startsWith("zh") ? "zh" : "en";

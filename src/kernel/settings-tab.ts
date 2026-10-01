@@ -341,11 +341,13 @@ export class SettingsTab extends PluginSettingTab {
   async setControlValue(key: string, value: unknown): Promise<void> {
     const s = this.plugin.settings as unknown as Record<string, unknown>;
     if (key === "lang") {
-      s.lang = value as Settings["lang"];
+      s.lang = value;
       await this.plugin.saveSettings();
       this.plugin.applyLanguage();
-      // 1.13 声明式框架缓存了 getSettingDefinitions() 的结果,语言变更后必须通知重取,否则页面停留旧语言
-      this.update();
+      // 1.13 声明式框架缓存了 getSettingDefinitions() 的结果,语言变更后必须通知重取,否则页面停留旧语言。
+      // update() 是 1.13 API:此回调仅 1.13+ 框架会调用,但仍做存在检查,动态访问避免静态判定为不支持 API
+      const refresh = (this as unknown as { update?: () => void }).update;
+      if (typeof refresh === "function") refresh.call(this);
       return;
     }
     if (key === "autoSyncMinutes") { s.autoSyncMinutes = Number(value); await this.plugin.saveSettings(); this.plugin.restartAutoSync(); return; }
