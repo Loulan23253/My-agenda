@@ -1,3 +1,4 @@
+import { t } from "../l10n/strings";
 import type { Http, DavAuth } from "./dav";
 import { authHeaders } from "./dav";
 import type { CalendarEvent, EventId } from "../model/event";
@@ -260,7 +261,7 @@ export class SyncEngine {
         const pick = await deps.askConflict({
           title: ev.title,
           mine: describe(ev),
-          theirs: remoteDeleted ? "(服务器已删除)" : describe(remoteItem.event),
+          theirs: remoteDeleted ? t("sync.serverDeleted") : describe(remoteItem.event),
         });
         const route = routeById(entry.calendarId) ?? pickRoute(ev);
         if (pick === "mine" && route) {
@@ -404,7 +405,7 @@ export class SyncEngine {
             const pick = await deps.askConflict({
               title: job.ev.title,
               mine: describe(job.ev),
-              theirs: remoteEv ? describe(remoteEv) : "(服务器已删除)",
+              theirs: remoteEv ? describe(remoteEv) : t("sync.serverDeleted"),
             });
             if (pick === "theirs" && remoteEv) {
               const loaded = await deps.notes.loadAll();

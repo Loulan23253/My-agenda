@@ -1,3 +1,4 @@
+import { t } from "../l10n/strings";
 import ICAL from "ical.js";
 import type { CalendarEvent } from "../model/event";
 
@@ -15,7 +16,7 @@ export function parseIcsToEvents(icsText: string, idPrefix = ""): CalendarEvent[
     const isAllDay = start.isDate;
     const ev2: CalendarEvent = {
       id: idPrefix ? `${idPrefix}-${uid}` : uid,
-      title: ev.summary || "(无标题)",
+      title: ev.summary || t("sync.untitled"),
       startsAt: isAllDay ? start.toString().slice(0, 10) : icalToLocalIso(start),
       endsAt: end ? (isAllDay ? end.toString().slice(0, 10) : icalToLocalIso(end)) : undefined,
       isAllDay,

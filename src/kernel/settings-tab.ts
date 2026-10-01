@@ -74,7 +74,7 @@ export class SettingsTab extends PluginSettingTab {
       for (const cal of s.calendars) {
         const row = new Setting(containerEl).setName(cal.name || cal.url).setDesc(cal.url);
         row.addText((x: import("obsidian").TextComponent) =>
-          x.setPlaceholder("分类").setValue(cal.category).onChange(async (v) => {
+          x.setPlaceholder(t("settings.categoryPlaceholder")).setValue(cal.category).onChange(async (v) => {
             cal.category = v.trim();
             await this.plugin.saveSettings();
           }),
@@ -207,7 +207,7 @@ export class SettingsTab extends PluginSettingTab {
       }),
     );
 
-    new Setting(containerEl).setName("存储文件夹").addText((x) =>
+    new Setting(containerEl).setName(t("settings.folderName")).addText((x) =>
       x.setValue(s.folder).onChange(async (v) => {
         s.folder = v.trim() || "Agenda";
         await this.plugin.saveSettings();
@@ -310,7 +310,7 @@ export class SettingsTab extends PluginSettingTab {
         { name: t("settings.inject.marker"), control: { type: "text", key: "injectMarker" } },
         { name: t("settings.inject.folder"), control: { type: "text", key: "injectFolder" } },
         { name: t("settings.reminders"), control: { type: "toggle", key: "remindersEnabled" } },
-        { name: "存储文件夹", control: { type: "text", key: "folder" } },
+        { name: t("settings.folderName"), control: { type: "text", key: "folder" } },
       ]),
       this.groupOf(t("settings.section.defaults"), [
         { name: t("settings.defaultCategory"), control: { type: "text", key: "defaultCategory" } },
@@ -340,7 +340,14 @@ export class SettingsTab extends PluginSettingTab {
 
   async setControlValue(key: string, value: unknown): Promise<void> {
     const s = this.plugin.settings as unknown as Record<string, unknown>;
-    if (key === "lang") { s.lang = value as Settings["lang"]; await this.plugin.saveSettings(); this.plugin.applyLanguage(); return; }
+    if (key === "lang") {
+      s.lang = value as Settings["lang"];
+      await this.plugin.saveSettings();
+      this.plugin.applyLanguage();
+      // 1.13 声明式框架缓存了 getSettingDefinitions() 的结果,语言变更后必须通知重取,否则页面停留旧语言
+      this.update();
+      return;
+    }
     if (key === "autoSyncMinutes") { s.autoSyncMinutes = Number(value); await this.plugin.saveSettings(); this.plugin.restartAutoSync(); return; }
     if (key === "accent") { s.accent = value === "custom" ? "#007aff" : String(value); await this.plugin.saveSettings(); this.plugin.refreshPanels(); return; }
     if (key === "weekStart") { s.weekStart = value === "0" ? 0 : 1; await this.plugin.saveSettings(); this.plugin.refreshPanels(); return; }

@@ -1,5 +1,5 @@
 import { App, Modal, Notice } from "obsidian";
-import { t } from "../l10n/strings";
+import { t, getLang } from "../l10n/strings";
 import type { CalendarEvent } from "../model/event";
 import { toLocalIso } from "../kernel/dates";
 
@@ -50,7 +50,11 @@ function addMinutesHHMM(hhmm: string, minutes: number): string {
   return `${String(hh).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
-export const PRESET_CATEGORIES = ["工作", "个人", "上学", "旅行", "健康", "其他"];
+export function presetCategories(): string[] {
+  return getLang() === "zh"
+    ? ["工作", "个人", "上学", "旅行", "健康", "其他"]
+    : ["Work", "Personal", "School", "Travel", "Health", "Other"];
+}
 
 export interface EditorDefaults {
   defaultCategory?: string;
@@ -59,13 +63,13 @@ export interface EditorDefaults {
   categories?: string[];
 }
 
-const REPEAT_PRESETS: { key: string; label: string; rule: (start: Date) => string }[] = [
-  { key: "none", label: "不重复", rule: () => "" },
-  { key: "daily", label: "每天", rule: () => "FREQ=DAILY" },
-  { key: "weekly", label: "每周", rule: (d) => `FREQ=WEEKLY;BYDAY=${["SU","MO","TU","WE","TH","FR","SA"][d.getDay()]}` },
-  { key: "biweekly", label: "每两周", rule: (d) => `FREQ=WEEKLY;INTERVAL=2;BYDAY=${["SU","MO","TU","WE","TH","FR","SA"][d.getDay()]}` },
-  { key: "monthly", label: "每月", rule: () => `FREQ=MONTHLY` },
-  { key: "yearly", label: "每年", rule: () => `FREQ=YEARLY` },
+const REPEAT_PRESETS: { key: string; labelKey: "repeat.none" | "repeat.daily" | "repeat.weekly" | "repeat.biweekly" | "repeat.monthly" | "repeat.yearly"; rule: (start: Date) => string }[] = [
+  { key: "none", labelKey: "repeat.none", rule: () => "" },
+  { key: "daily", labelKey: "repeat.daily", rule: () => "FREQ=DAILY" },
+  { key: "weekly", labelKey: "repeat.weekly", rule: (d) => `FREQ=WEEKLY;BYDAY=${["SU","MO","TU","WE","TH","FR","SA"][d.getDay()]}` },
+  { key: "biweekly", labelKey: "repeat.biweekly", rule: (d) => `FREQ=WEEKLY;INTERVAL=2;BYDAY=${["SU","MO","TU","WE","TH","FR","SA"][d.getDay()]}` },
+  { key: "monthly", labelKey: "repeat.monthly", rule: () => `FREQ=MONTHLY` },
+  { key: "yearly", labelKey: "repeat.yearly", rule: () => `FREQ=YEARLY` },
 ];
 
 /** 同步历史:最近 10 次结果 + 强制全量同步入口。 */
@@ -209,7 +213,7 @@ export function openEventEditor(
   const repeatCtrl = addRow(rowsTime, t("editor.field.repeat"));
   const repeatSel = repeatCtrl.createEl("select", { cls: "ag2-f-sel" });
   const startDate = new Date(ev.startsAt);
-  for (const p of REPEAT_PRESETS) repeatSel.createEl("option", { value: p.key, text: p.label });
+  for (const p of REPEAT_PRESETS) repeatSel.createEl("option", { value: p.key, text: t(p.labelKey) });
   repeatSel.createEl("option", { value: "custom", text: t("editor.repeat.custom") });
   const presetOf = (rule?: string): string => {
     if (!rule) return "none";
@@ -230,12 +234,12 @@ export function openEventEditor(
 
   const statusCtrl = addRow(rowsTime, t("editor.field.status"));
   const statusSel = statusCtrl.createEl("select", { cls: "ag2-f-sel" });
-  for (const [v, label] of [
-    ["", "已确认"],
-    ["tentative", "暂定"],
-    ["cancelled", "已取消"],
+  for (const [v, labelKey] of [
+    ["", "status.confirmed"],
+    ["tentative", "status.tentative"],
+    ["cancelled", "status.cancelled"],
   ] as const) {
-    statusSel.createEl("option", { value: v, text: label });
+    statusSel.createEl("option", { value: v, text: t(labelKey) });
   }
   statusSel.value = ev.status ?? "";
 
@@ -250,7 +254,7 @@ export function openEventEditor(
   let catValue = ev.category ?? "";
   const renderChips = (): void => {
     catChips.empty();
-    for (const c of defaults.categories?.length ? defaults.categories : PRESET_CATEGORIES) {
+    for (const c of defaults.categories?.length ? defaults.categories : presetCategories()) {
       const chip = catChips.createEl("button", { cls: "ag2-chipbtn" + (catValue === c ? " is-on" : ""), text: c });
       chip.addEventListener("click", () => {
         catValue = catValue === c ? "" : c;
@@ -268,9 +272,17 @@ export function openEventEditor(
 
   // 卡片四:备注
   const cardNotes = content.createDiv({ cls: "ag2-card" });
-  const notesInput = cardNotes.createEl("textarea", { cls: "ag2-f-note" });
-  notesInput.placeholder = t("editor.field.notes");
-  notesInput.value = ev.notes ?? "";
+  // 备注用 contenteditable 纯文本块:高度天然随内容,不受主题对 textarea 的高度规则影响
+  const notesInput = cardNotes.createDiv({ cls: "ag2-f-note ag2-f-note-ed" });
+  notesInput.setAttr("contenteditable", "plaintext-only");
+  notesInput.setAttr("role", "textbox");
+  notesInput.setAttr("aria-label", t("editor.field.notes"));
+  notesInput.setAttr("data-placeholder", t("editor.field.notes"));
+  notesInput.setText(ev.notes ?? "");
+  notesInput.toggleClass("is-empty", !ev.notes);
+  notesInput.addEventListener("input", () => {
+    notesInput.toggleClass("is-empty", !(notesInput.textContent || "").trim());
+  });
 
   const readBack = (): CalendarEvent => {
     const s = allday.checked
@@ -287,7 +299,7 @@ export function openEventEditor(
       isAllDay: allday.checked,
       category: catValue || undefined,
       place: placeInput.value.trim() || undefined,
-      notes: notesInput.value || undefined,
+      notes: (notesInput.textContent || "").trim() || undefined,
       reminderMinutes: remindInput.value
         ? remindInput.value.split(",").map((x) => Number.parseInt(x.trim(), 10)).filter((n) => Number.isFinite(n))
         : undefined,

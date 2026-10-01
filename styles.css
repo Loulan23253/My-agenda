@@ -278,9 +278,10 @@
 .ag2-f-dt:focus { outline: none; }
 .ag2-f-sel { border: none; background: transparent; font-size: 0.88em; color: var(--text-normal); text-align: right; max-width: 100%; }
 .ag2-f-wide { }
-.ag2-f-note { width: 100%; box-sizing: border-box; border: 1px solid var(--background-modifier-border); background: var(--background-primary); border-radius: 7px; min-height: 2.1em; resize: vertical; font-size: 0.88em; color: var(--text-normal); padding: 0.3em 0.55em; }
+.ag2-f-note { width: 100%; box-sizing: border-box; border: 1px solid var(--background-modifier-border); background: var(--background-primary); border-radius: 7px; min-height: 2.1em; max-height: 40vh; overflow-y: auto; font-size: 0.88em; color: var(--text-normal); padding: 0.3em 0.55em; }
 .ag2-f-note:focus { outline: none; border-color: var(--ag-tint); }
-.ag2-f-note:focus { outline: none; }
+.ag2-f-note-ed:empty::before, .ag2-f-note-ed.is-empty::before { content: attr(data-placeholder); color: var(--text-faint); pointer-events: none; }
+.ag2-f-note-ed:focus::before { content: none; }
 .ag2-switch { accent-color: var(--ag-tint); width: 1.1em; height: 1.1em; }
 .ag2-chips { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
 .ag2-chipbtn { font-size: 0.7em; padding: 0.08em 0.55em; border-radius: 999px; border: 1px solid var(--background-modifier-border); background: var(--background-primary); color: var(--text-muted); cursor: pointer; }

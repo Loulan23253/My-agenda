@@ -103,9 +103,15 @@ export default class MyAgendaPluginV2 extends Plugin {
 
   private resolveLang(): "zh" | "en" {
     if (this.settings.lang !== "auto") return this.settings.lang;
-    // 系统语言探测:navigator.language 在弹窗窗口同样可用(不依赖 localStorage/getLanguage)
-    const locale = navigator.language.toLowerCase();
-    return locale.startsWith("zh") ? "zh" : "en";
+    // auto = 跟随 Obsidian 界面语言(localStorage "language" 是 Obsidian 自己存界面语言的键),
+    // 而不是系统语言——Obsidian 界面设为英文时必须出英文。弹窗窗口读不到 localStorage,回退系统语言。
+    try {
+      const obsidianLang = window.localStorage.getItem("language");
+      if (obsidianLang) return obsidianLang.toLowerCase().startsWith("zh") ? "zh" : "en";
+    } catch {
+      /* popout 窗口无 localStorage */
+    }
+    return navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en";
   }
 
   private touchCache(path: string): void {

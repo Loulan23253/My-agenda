@@ -55,7 +55,7 @@ function eventRow(occ: Occurrence, deps: ViewDeps, showDate: boolean, highlight?
   if (occ.event.status && occ.event.status !== "confirmed") {
     const pill = createSpan({
       cls: "ag2-status-pill" + (occ.event.status === "cancelled" ? " is-cancelled" : ""),
-      text: occ.event.status === "tentative" ? "暂定" : "已取消",
+      text: occ.event.status === "tentative" ? t("status.tentative") : t("status.cancelled"),
     });
     row.appendChild(pill);
   }
@@ -76,7 +76,9 @@ function colorSoft(cat: string): string {
 }
 
 function dayShort(d: Date, zh: boolean): string {
-  const w = ["日", "一", "二", "三", "四", "五", "六"][d.getDay()];
+  const w = zh
+    ? ["日", "一", "二", "三", "四", "五", "六"][d.getDay()]
+    : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()];
   return zh ? `${d.getMonth() + 1}月${d.getDate()}日 周${w}` : `${d.getMonth() + 1}/${d.getDate()} (${w})`;
 }
 
@@ -216,7 +218,7 @@ export function renderMonthView(container: HTMLElement, events: CalendarEvent[],
         e.stopPropagation();
         const opening = !cell.classList.contains("ag2-month-open");
         cell.classList.toggle("ag2-month-open", opening);
-        more.setText(opening ? "收起" : `+${extra}`);
+        more.setText(opening ? t("month.collapse") : `+${extra}`);
       });
     }
     if (deps.onMoveToDay) {
