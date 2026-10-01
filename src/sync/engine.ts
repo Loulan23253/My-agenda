@@ -333,6 +333,13 @@ export class SyncEngine {
     }
 
     // ④ 先落盘"拉取/收养"(本地写),再发布服务器写
+    // 分类跟随日历映射:日历配置了分类时,覆盖事件自带的 VEVENT CATEGORIES,
+    // 保证"上课"日历下的事件始终显示为该日历的分类,不被历史 CATEGORIES 污染
+    for (const ev of toApply) {
+      const entry = deps.journal.events[ev.id];
+      const route = entry ? routeById(entry.calendarId) : undefined;
+      if (route?.category?.trim()) ev.category = route.category.trim();
+    }
     if (toApply.length) {
       const applied = new Map(toApply.map((x) => [x.id, x]));
       const merged = local.map((e) => applied.get(e.id) ?? e);

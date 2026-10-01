@@ -5,6 +5,19 @@
   overflow: hidden;
   padding: 0;
 }
+/* 强规则:面板容器绝不允许滚动(横向滚动条/底栏不贴底的最终兜底) */
+.workspace-leaf-content[data-type="myagenda-v2-panel"] .view-content {
+  overflow: hidden !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+}
+.workspace-leaf-content[data-type="myagenda-v2-panel"] .view-content > .ag2-panel {
+  flex: 1 1 auto !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
 .ag2-panel {
   height: 100%;
   min-height: 0;
@@ -26,7 +39,8 @@
   flex: 1 1 auto;
   overflow: hidden; /* 面板自身永不滚动:头部/底部钉死,唯一滚动在 .ag2-body */
   box-sizing: border-box;
-  padding: 0.5em 1em 0;
+  --ag-panel-pad-x: 1em;
+  padding: 0.5em var(--ag-panel-pad-x) 0;
   font-size: var(--font-text-size, 16px);
   container-type: inline-size;
 }
@@ -67,14 +81,14 @@
 .ag2-chip.off { opacity: 0.4; background: transparent; box-shadow: inset 0 0 0 1px var(--ag-sep); }
 
 .ag2-results { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-.ag2-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.ag2-body { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
 .ag2-body.ag2-has-timegrid { display: flex; flex-direction: column; overflow: hidden; }
 .ag2-empty { color: var(--text-muted); text-align: center; padding: 1.4em 0; font-size: 0.9em; }
 .ag2-daygroup { margin-bottom: 0.9em; }
 .ag2-dayheader { display: flex; align-items: baseline; gap: 0.5em; padding: 0.15em 0.2em 0.4em; }
 .ag2-daylabel { font-weight: 700; font-size: 0.95em; color: var(--text-normal); }
 .ag2-daycount { color: var(--text-muted); font-size: 0.78em; }
-.ag2-event-row { display: flex; align-items: center; gap: 0.7em; padding: 0.55em 0.85em; border-left: 3px solid var(--ag-tint); border-radius: 12px; background: var(--background-primary); box-shadow: 0 1px 1px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.04), 0 0 0 0.5px var(--ag-sep); margin-bottom: 0.45em; cursor: pointer; transition: background 0.15s ease; }
+.ag2-event-row { display: flex; align-items: center; gap: 0.7em; padding: 0.55em 0.85em; border-left: 3px solid var(--ag-tint); border-radius: 12px; background: var(--background-primary); box-shadow: 0 1px 1px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.04), 0 0 0 0.5px var(--ag-sep); margin-bottom: 0.45em; cursor: pointer; transition: background 0.15s ease;  min-width: 0; }
 .ag2-event-row:hover { background: var(--background-modifier-hover); }
 .ag2-event-when { display: flex; flex-direction: column; min-width: 6.2em; }
 .ag2-when-timeonly { min-width: 3.4em; }
@@ -85,7 +99,7 @@
 .ag2-event-place { font-size: 0.8em; color: var(--text-muted); }
 .ag2-cat-pill { font-size: 0.72em; font-weight: 600; padding: 0.15em 0.6em; border-radius: 999px; white-space: nowrap; }
 
-.ag2-navbar { flex: 0 0 auto; display: flex; gap: 2px; margin: 0.4em -1em 0; padding: 0.4em 0.6em calc(0.4em + env(safe-area-inset-bottom, 0px)); background: color-mix(in srgb, var(--background-primary) 78%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.8); backdrop-filter: blur(14px) saturate(1.8); box-shadow: 0 -0.5px 0 var(--ag-sep); z-index: 5; }
+.ag2-navbar { flex: 0 0 auto; display: flex; gap: 2px; margin: 0.4em calc(-1 * var(--ag-panel-pad-x, 1em)) 0; width: calc(100% + 2 * var(--ag-panel-pad-x, 1em)); max-width: none; padding: 0.4em 0.6em calc(0.4em + env(safe-area-inset-bottom, 0px)); background: color-mix(in srgb, var(--background-primary) 78%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.8); backdrop-filter: blur(14px) saturate(1.8); box-shadow: 0 -0.5px 0 var(--ag-sep); z-index: 5; }
 .ag2-navitem { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; padding: 0.3em 0; border-radius: 9px; color: var(--text-muted); font-size: 0.66em; }
 .ag2-navitem .svg-icon { width: 1.5em; height: 1.5em; }
 .ag2-navitem:hover { background: var(--ag-tint-softer); }
@@ -144,8 +158,8 @@
 
 .ag2-monthhead { display: flex; }
 .ag2-monthdow { flex: 1 1 0; text-align: center; font-size: 0.68em; color: var(--text-muted); padding: 0.2em 0; }
-.ag2-monthgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-.ag2-monthcell { min-height: 3.6em; border-radius: 8px; padding: 0.15em; cursor: pointer; border: 1px solid transparent; }
+.ag2-monthgrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.ag2-monthcell { min-width: 0; min-height: 3.6em; overflow: hidden; border-radius: 8px; padding: 0.15em; cursor: pointer; border: 1px solid transparent; }
 .ag2-monthcell:hover { background: var(--ag-tint-softer); }
 .ag2-monthcell.is-other { opacity: 0.35; }
 .ag2-monthcell.is-today { border-color: var(--ag-tint); }
@@ -335,7 +349,7 @@
 .ag2-grid-colhead.is-wd-6 { color: #6366f1; }
 
 /* ---- 月视图:圆角卡片单元格 + 左上角日期 + 事件条 ---- */
-.ag2-monthgrid { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 1fr; gap: 4px; height: 100%; }
+.ag2-monthgrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 4px; height: 100%; }
 .ag2-monthcell { min-height: 4.2em; border-radius: 10px; padding: 0.3em 0.4em; background: var(--background-primary); box-shadow: 0 0 0 0.5px var(--ag-sep); display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
 .ag2-monthcell.is-other { background: transparent; box-shadow: none; }
 .ag2-monthcell.is-other .ag2-monthday { color: var(--text-faint); }

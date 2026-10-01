@@ -200,6 +200,43 @@ export class SettingsTab extends PluginSettingTab {
       }),
     );
 
+    new Setting(containerEl).setName(t("settings.inject.useCheckbox")).setDesc(t("settings.inject.useCheckbox.desc")).addToggle((tg) =>
+      tg.setValue(s.injectUseCheckbox).onChange(async (v) => {
+        s.injectUseCheckbox = v;
+        await this.plugin.saveSettings();
+      }),
+    );
+    new Setting(containerEl).setName(t("settings.inject.showPlace")).setDesc(t("settings.inject.showPlace.desc")).addToggle((tg) =>
+      tg.setValue(s.injectShowPlace).onChange(async (v) => {
+        s.injectShowPlace = v;
+        await this.plugin.saveSettings();
+      }),
+    );
+    new Setting(containerEl).setName(t("settings.inject.showCategory")).setDesc(t("settings.inject.showCategory.desc")).addToggle((tg) =>
+      tg.setValue(s.injectShowCategory).onChange(async (v) => {
+        s.injectShowCategory = v;
+        await this.plugin.saveSettings();
+      }),
+    );
+    new Setting(containerEl).setName(t("settings.inject.prefix")).addDropdown((d) => {
+      d.addOption(">>", t("settings.inject.prefix.nested"));
+      d.addOption(">", t("settings.inject.prefix.plain"));
+      d.setValue(s.injectPrefix);
+      d.onChange(async (v) => {
+        s.injectPrefix = v === ">" ? ">" : ">>";
+        await this.plugin.saveSettings();
+      });
+    });
+    new Setting(containerEl).setName(t("settings.inject.timeFormat")).addDropdown((d) => {
+      d.addOption("24h", t("settings.inject.timeFormat.24h"));
+      d.addOption("12h", t("settings.inject.timeFormat.12h"));
+      d.setValue(s.injectTimeFormat);
+      d.onChange(async (v) => {
+        s.injectTimeFormat = v === "12h" ? "12h" : "24h";
+        await this.plugin.saveSettings();
+      });
+    });
+
     new Setting(containerEl).setName(t("settings.reminders")).addToggle((tg) =>
       tg.setValue(s.remindersEnabled).onChange(async (v) => {
         s.remindersEnabled = v;
@@ -309,6 +346,11 @@ export class SettingsTab extends PluginSettingTab {
         { name: t("settings.inject.enable"), control: { type: "toggle", key: "injectEnabled" } },
         { name: t("settings.inject.marker"), control: { type: "text", key: "injectMarker" } },
         { name: t("settings.inject.folder"), control: { type: "text", key: "injectFolder" } },
+        { name: t("settings.inject.useCheckbox"), desc: t("settings.inject.useCheckbox.desc"), control: { type: "toggle", key: "injectUseCheckbox" } },
+        { name: t("settings.inject.showPlace"), desc: t("settings.inject.showPlace.desc"), control: { type: "toggle", key: "injectShowPlace" } },
+        { name: t("settings.inject.showCategory"), desc: t("settings.inject.showCategory.desc"), control: { type: "toggle", key: "injectShowCategory" } },
+        { name: t("settings.inject.prefix"), control: { type: "dropdown", key: "injectPrefix", options: { ">>": t("settings.inject.prefix.nested"), ">": t("settings.inject.prefix.plain") } } },
+        { name: t("settings.inject.timeFormat"), control: { type: "dropdown", key: "injectTimeFormat", options: { "24h": t("settings.inject.timeFormat.24h"), "12h": t("settings.inject.timeFormat.12h") } } },
         { name: t("settings.reminders"), control: { type: "toggle", key: "remindersEnabled" } },
         { name: t("settings.folderName"), control: { type: "text", key: "folder" } },
       ]),
@@ -354,6 +396,8 @@ export class SettingsTab extends PluginSettingTab {
     if (key === "accent") { s.accent = value === "custom" ? "#007aff" : String(value); await this.plugin.saveSettings(); this.plugin.refreshPanels(); return; }
     if (key === "weekStart") { s.weekStart = value === "0" ? 0 : 1; await this.plugin.saveSettings(); this.plugin.refreshPanels(); return; }
     if (key === "folder") { s.folder = String(value).trim() || "Agenda"; await this.plugin.saveSettings(); return; }
+    if (key === "injectPrefix") { s.injectPrefix = value === ">" ? ">" : ">>"; await this.plugin.saveSettings(); return; }
+    if (key === "injectTimeFormat") { s.injectTimeFormat = value === "12h" ? "12h" : "24h"; await this.plugin.saveSettings(); return; }
     if (key === "defaultReminderMinutes") {
       const n = Number.parseInt(String(value), 10);
       s.defaultReminderMinutes = Number.isFinite(n) ? n : -1;
