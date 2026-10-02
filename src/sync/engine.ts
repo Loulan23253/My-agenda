@@ -36,6 +36,8 @@ export interface EngineDeps {
   journal: SyncJournal;
   saveJournal(): Promise<void>;
   askConflict(info: ConflictInfo): Promise<ConflictChoice>;
+  /** 日历在远端已不存在(404)时询问:是否移除其配置与本地日程。缺省时仅静默跳过。 */
+  askCalendarsDeleted?: (names: string[]) => Promise<boolean>;
   notify(msg: string): void;
   sleep(ms: number): Promise<void>;
 }
@@ -61,6 +63,8 @@ interface ScanResult {
   /** 服务器已删除的资源 href。 */
   deletedHrefs: Set<string>;
   tokens: Record<string, string | undefined>;
+  /** 远端已不存在的日历(404,通常是被用户在 Apple 日历中删除)。 */
+  missing: CalendarRoute[];
 }
 
 
@@ -91,6 +95,7 @@ export class SyncEngine {
     const byUid = new Map<EventId, RemoteItem>();
     const deletedHrefs = new Set<string>();
     const tokens: Record<string, string | undefined> = {};
+    const missing: CalendarRoute[] = [];
 
     for (const route of deps.routes) {
       const token = deps.journal.calendars[route.id]?.syncToken;
@@ -107,6 +112,10 @@ export class SyncEngine {
               `<d:sync-token>${token}</d:sync-token><d:sync-level>1</d:sync-level>` +
               `<d:prop><d:getetag/></d:prop></d:sync-collection>`,
           });
+          if (res.status === 404) {
+            if (!missing.find((r) => r.id === route.id)) missing.push(route);
+            continue;
+          }
           if (res.status >= 200 && res.status < 300) {
             incrementalOk = true;
             const newToken = parseSyncToken(res.text);
@@ -172,6 +181,10 @@ export class SyncEngine {
             `<c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VEVENT"/></c:comp-filter></c:filter>` +
             `</c:calendar-query>`,
         });
+        if (res.status === 404) {
+          if (!missing.find((r) => r.id === route.id)) missing.push(route);
+          continue;
+        }
         if (res.status < 200 || res.status >= 300) {
           deps.notify(`日历「${route.name || route.id}」拉取失败(HTTP ${res.status})`);
           continue;
@@ -182,7 +195,7 @@ export class SyncEngine {
         }
       }
     }
-    return { byUid, deletedHrefs, tokens };
+    return { byUid, deletedHrefs, tokens, missing };
   }
 
   // ── 主流程 ──
@@ -193,6 +206,20 @@ export class SyncEngine {
     const read = await deps.notes.loadAll();
     const local = read.events;
     const remote = await this.scan();
+
+    // 日历在 iCloud 上已被删除(404):询问用户是否移除配置与本地日程
+    if (remote.missing.length && deps.askCalendarsDeleted) {
+      const remove = await deps.askCalendarsDeleted(remote.missing.map((r) => r.name || r.id));
+      if (remove) {
+        for (const r of remote.missing) {
+          for (const [id, entry] of Object.entries(deps.journal.events)) {
+            if (entry.calendarId === r.id) journalRemove(deps.journal, id);
+          }
+          delete deps.journal.calendars[r.id];
+        }
+        await deps.saveJournal();
+      }
+    }
     const remoteByUid = remote.byUid;
 
     const pickRoute = (ev: CalendarEvent): CalendarRoute | undefined => {
@@ -263,8 +290,9 @@ export class SyncEngine {
           mine: describe(ev),
           theirs: remoteDeleted ? t("sync.serverDeleted") : describe(remoteItem.event),
         });
-        const route = routeById(entry.calendarId) ?? pickRoute(ev);
-        if (pick === "mine" && route) {
+        const route = routeById(entry.calendarId);
+        if (!route) continue; // 该日历已停用:事件暂停同步(本地与远端数据都保留)
+        if (pick === "mine") {
           if (remoteDeleted) {
             toPush.push({ ev, route, isNew: true }); // 服务器没了 → 重新创建
           } else {
@@ -285,8 +313,9 @@ export class SyncEngine {
         continue;
       }
       if (localDirty) {
-        const route = routeById(entry.calendarId) ?? pickRoute(ev);
-        if (route) toPush.push({ ev, route, ifMatch: remoteItem?.etag, isNew: remoteDeleted || !remoteItem });
+        const route = routeById(entry.calendarId);
+        if (!route) continue; // 该日历已停用:事件暂停同步(本地与远端数据都保留)
+        toPush.push({ ev, route, ifMatch: remoteItem?.etag, isNew: remoteDeleted || !remoteItem });
       } else if (remoteDirty) {
         if (remoteItem) {
           toApply.push(remoteItem.event);

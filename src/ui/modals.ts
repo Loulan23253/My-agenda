@@ -1,6 +1,7 @@
 import { App, Modal, Notice } from "obsidian";
 import { t, getLang } from "../l10n/strings";
 import type { CalendarEvent } from "../model/event";
+import type { DiscoveredCalendar } from "../sync/dav";
 import { toLocalIso } from "../kernel/dates";
 
 /** 冲突裁决弹窗。 */
@@ -105,9 +106,9 @@ export function openSyncHistory(
 /** 日历发现:勾选要导入的日历(已在库中的禁用并标注)。 */
 export function openDiscoverModal(
   app: App,
-  calendars: { id: string; url: string; name: string }[],
+  calendars: DiscoveredCalendar[],
   existingUrls: Set<string>,
-  onPick: (picked: { id: string; url: string; name: string }[]) => void,
+  onPick: (picked: DiscoveredCalendar[]) => void,
 ): void {
   const modal = new Modal(app);
   modal.modalEl.addClass("ag2-modal");
@@ -122,7 +123,11 @@ export function openDiscoverModal(
     cb.checked = picked.has(c.id);
     cb.disabled = exists;
     if (exists) row.addClass("is-existing");
-    row.createDiv({ cls: "ag2-discover-name", text: c.name || c.id.slice(0, 8) });
+    const nameCell = row.createDiv({ cls: "ag2-discover-name", text: c.name || c.id.slice(0, 8) });
+    if (c.color) {
+      const dot = nameCell.createSpan({ cls: "ag2-discover-dot" });
+      dot.setCssStyles({ background: c.color });
+    }
     cb.addEventListener("change", () => {
       if (cb.checked) picked.add(c.id);
       else picked.delete(c.id);
@@ -279,9 +284,18 @@ export function openEventEditor(
   notesInput.setAttr("aria-label", t("editor.field.notes"));
   notesInput.setAttr("data-placeholder", t("editor.field.notes"));
   notesInput.setText(ev.notes ?? "");
-  notesInput.toggleClass("is-empty", !ev.notes);
+  notesInput.toggleClass("is-empty", !(ev.notes ?? "").trim());
   notesInput.addEventListener("input", () => {
     notesInput.toggleClass("is-empty", !(notesInput.textContent || "").trim());
+  });
+  // plaintext-only 的回车换行显式处理,保证 textContent 保留 
+
+  notesInput.addEventListener("keydown", (e) => {
+    const ke = e as KeyboardEvent;
+    if (ke.key === "Enter" && !ke.shiftKey) {
+      e.preventDefault();
+      window.document.execCommand("insertLineBreak");
+    }
   });
 
   const readBack = (): CalendarEvent => {

@@ -64,6 +64,8 @@ export interface DiscoveredCalendar {
   id: string;
   url: string;
   name: string;
+  /** Apple 日历颜色(iCloud 的 calendar-color 属性,#RRGGBB)。 */
+  color?: string;
 }
 
 export interface DiscoveryResult {
@@ -123,7 +125,7 @@ export async function discoverCalendars(
       url: home,
       method: "PROPFIND",
       headers: authHeaders(creds, { Depth: "1", "Content-Type": XML_CT }),
-      body: `<d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav"><d:prop><d:displayname/><d:resourcetype/><c:supported-calendar-component-set/></d:prop></d:propfind>`,
+      body: `<d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" xmlns:ia="http://apple.com/ns/ical/"><d:prop><d:displayname/><d:resourcetype/><c:supported-calendar-component-set/><ia:calendar-color/></d:prop></d:propfind>`,
     }).catch((e) => {
       lastNetworkError = e;
       return null;
@@ -152,12 +154,19 @@ export function parseCalendarCollection(xml: string, homeUrl: string): Discovere
     const inner = all[i].getElementsByTagName("*");
     let href = "";
     let name = "";
+    let color = "";
     const types = new Set<string>();
     const comps = new Set<string>();
     for (let j = 0; j < inner.length; j++) {
       const tag = localName(inner[j]);
       if (tag === "href" && !href) href = (inner[j].textContent || "").trim();
       else if (tag === "displayname" && !name) name = (inner[j].textContent || "").trim();
+      else if (tag === "calendar-color" && !color) {
+        // Apple 扩展属性,#RRGGBBAA → 取 #RRGGBB
+        const raw = (inner[j].textContent || "").trim();
+        const m = raw.match(/^#([0-9a-fA-F]{6})/);
+        if (m) color = `#${m[1]}`;
+      }
       else if (tag === "resourcetype") {
         for (const k of Array.from(inner[j].getElementsByTagName("*"))) types.add(localName(k));
       } else if (tag === "supported-calendar-component-set") {
@@ -169,7 +178,7 @@ export function parseCalendarCollection(xml: string, homeUrl: string): Discovere
     if (comps.size && !comps.has("VEVENT")) continue;
     const url = new URL(href, homeUrl).toString();
     const lastSeg = decodeURIComponent(url.replace(/\/$/, "").split("/").pop() ?? url);
-    out.push({ id: lastSeg, url, name: name || lastSeg });
+    out.push({ id: lastSeg, url, name: name || lastSeg, color: color || undefined });
   }
   return out;
 }

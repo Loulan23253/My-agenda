@@ -5,7 +5,7 @@ import { sanitize, type Settings } from "./kernel/settings";
 import { SettingsTab } from "./kernel/settings-tab";
 import { VaultFileIO } from "./platform/io";
 import { MonthlyNoteStore, monthOf } from "./data/note-store";
-import { EMPTY_JOURNAL, type SyncJournal } from "./data/journal";
+import { EMPTY_JOURNAL, journalRemove, type SyncJournal } from "./data/journal";
 import type { KeyValueFileIO } from "./data/io";
 import { obsidianHttp, discoverCalendars } from "./sync/dav";
 import { SyncEngine, type CalendarRoute } from "./sync/engine";
@@ -79,6 +79,43 @@ export default class MyAgendaPluginV2 extends Plugin {
     this.addCommand({ id: "open-panel", name: t("cmd.openPanel"), callback: () => void this.openPanel() });
     this.addCommand({ id: "sync-now", name: t("cmd.sync"), callback: () => void this.syncNow() });
     this.addCommand({ id: "inject-daily", name: t("cmd.inject"), callback: () => void this.injectCommand() });
+    this.addCommand({
+      id: "clear-calendar-local",
+      name: t("cmd.clearLocal"),
+      callback: async () => {
+        const cals = this.settings.calendars;
+        if (!cals.length) {
+          new Notice(t("notice.clearNone"));
+          return;
+        }
+        const pick = await askChoice(
+          this.app,
+          t("cmd.clearLocal.title"),
+          cals.map((c) => ({ value: c.id, label: c.enabled ? (c.name || c.id) : "[已停] " + (c.name || c.id) })),
+        );
+        if (!pick) return;
+        const cal = cals.find((c) => c.id === pick);
+        if (!cal) return;
+        const confirm = await askChoice(
+          this.app,
+          t("settings.cal.disable.title", { name: cal.name || cal.id }),
+          [{ value: "clear", label: t("settings.cal.disable.clear") }],
+        );
+        if (!confirm) return;
+        await this.clearCalendarLocalEvents(cal);
+      },
+    });
+    this.addCommand({
+      id: "reset-sync-data",
+      name: t("cmd.reset"),
+      callback: async () => {
+        const confirm = await askChoice(this.app, t("settings.reset.confirm"), [
+          { value: "reset", label: t("settings.reset.confirmYes") },
+        ]);
+        if (!confirm) return;
+        await this.resetAllSyncData();
+      },
+    });
     this.addCommand({
       id: "quick-add",
       name: t("cmd.quickAdd"),
@@ -205,6 +242,25 @@ export default class MyAgendaPluginV2 extends Plugin {
         const engine = new SyncEngine({
           http: obsidianHttp,
           routes,
+        askCalendarsDeleted: async (names: string[]) => {
+          const pick = await askChoice(
+            this.app,
+            `${t("settings.cal.deleted.title")}\n${names.join(", ")}`,
+            [{ value: "remove", label: t("settings.cal.deleted.remove") }],
+          );
+          if (pick !== "remove") return false;
+          for (const name of names) {
+            const cal = this.settings.calendars.find((x) => (x.name || x.id) === name);
+            if (cal) {
+              await this.clearCalendarLocalEvents(cal);
+              if (this.journal.calendars[cal.id]) delete this.journal.calendars[cal.id];
+            }
+          }
+          this.settings.calendars = this.settings.calendars.filter((x) => !names.includes(x.name || x.id));
+          await this.saveSettings();
+          this.invalidate();
+          return true;
+        },
           notes: this.notes,
           journal: this.journal,
           saveJournal: () => this.saveJournal(),
@@ -371,6 +427,42 @@ export default class MyAgendaPluginV2 extends Plugin {
     void this.syncNow();
   }
 
+  /** 停止同步某日历时,清空其在笔记中的现有日程(账本条目一并移除;iCloud 上保留)。 */
+  async clearCalendarLocalEvents(cal: { id: string; name: string }): Promise<void> {
+    const ids = new Set<string>();
+    for (const [id, entry] of Object.entries(this.journal.events)) {
+      if (entry.calendarId === cal.id) ids.add(id);
+    }
+    if (!ids.size) {
+      new Notice(t("notice.clearNone"));
+      return;
+    }
+    await this.notes.removeByUids(ids);
+    for (const id of ids) journalRemove(this.journal, id);
+    await this.saveJournal();
+    this.invalidate();
+    this.refreshPanels();
+    new Notice(t("notice.clearDone", { n: ids.size }));
+  }
+
+  /** 重置全部同步数据:笔记中的日程事件、账本与同步令牌、账号与日历配置。iCloud 不受影响。 */
+  async resetAllSyncData(): Promise<void> {
+    const { events } = await this.notes.loadAll();
+    const uids = new Set<string>(events.map((e) => e.id));
+    for (const id of Object.keys(this.journal.events)) uids.add(id);
+    if (uids.size) await this.notes.removeByUids(uids);
+    this.journal = { ...EMPTY_JOURNAL };
+    await this.saveJournal();
+    this.settings.user = "";
+    this.settings.password = "";
+    this.settings.calendars = [];
+    this.settings.lastSync = undefined;
+    await this.saveSettings();
+    this.invalidate();
+    this.refreshPanels();
+    new Notice(t("notice.resetDone", { n: uids.size }));
+  }
+
   /** 本地未同步日程数:状态非 synced,或推送指纹已置脏的账本条目。 */
   private pendingLocalCount(): number {
     let n = 0;
@@ -394,9 +486,19 @@ export default class MyAgendaPluginV2 extends Plugin {
         pass: this.settings.password,
       });
       openDiscoverModal(this.app, calendars, new Set(this.settings.calendars.map((x) => x.url)), (picked) => {
+        // Apple 日历颜色 → 写入对应分类的颜色表(渲染自动跟随 Apple 色)
+        const appleColor = (cal: { url: string; color?: string }) => {
+          if (!cal.color) return;
+          const known = this.settings.calendars.find((x) => x.url === cal.url);
+          if (known?.category) this.settings.categoryColors[known.category] = cal.color;
+        };
+        for (const dc of calendars) appleColor(dc);
         for (const c of picked) {
-          this.settings.calendars.push({ id: c.id, url: c.url, name: c.name, category: c.name, enabled: true });
+          if (this.settings.calendars.some((x) => x.url === c.url)) continue;
+          this.settings.calendars.push({ id: c.id, url: c.url, name: c.name, category: c.name, enabled: true, color: c.color });
+          if (c.color) this.settings.categoryColors[c.name] = c.color;
         }
+        setCategoryColors(this.settings.categoryColors);
         void this.saveSettings().then(() => {
           new Notice(`[${root}] ` + t("notice.discoverDone", { n: picked.length }), 10000);
           this.refreshPanels();

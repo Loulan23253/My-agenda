@@ -1,4 +1,5 @@
 import { App, PluginSettingTab, Setting, type SettingDefinitionItem, type SettingDefinitionGroup, type SettingGroupItem } from "obsidian";
+import { askChoice } from "../ui/modals";
 import { setCategoryColors } from "../ui/palette";
 import { t } from "../l10n/strings";
 import type MyAgendaPluginV2 from "../main";
@@ -57,11 +58,25 @@ export class SettingsTab extends PluginSettingTab {
     );
 
     const pw = new Setting(containerEl).setName(t("settings.password"));
+    let pwVisible = false;
+    let pwText: import("obsidian").TextComponent | undefined;
+    const pwToggle = (btn: import("obsidian").ExtraButtonComponent) => {
+      btn.setIcon(pwVisible ? "eye-off" : "eye").setTooltip(pwVisible ? t("settings.password.hide") : t("settings.password.show"));
+    };
     pw.addText((x) => {
       x.inputEl.type = "password";
       x.setValue(s.password).onChange(async (v) => {
         s.password = v.trim();
         await this.plugin.saveSettings();
+      });
+      pwText = x;
+    });
+    pw.addExtraButton((b) => {
+      pwToggle(b);
+      b.onClick(() => {
+        pwVisible = !pwVisible;
+        if (pwText) pwText.inputEl.type = pwVisible ? "text" : "password";
+        pwToggle(b);
       });
     });
 
@@ -81,8 +96,29 @@ export class SettingsTab extends PluginSettingTab {
         );
         row.addToggle((tg) =>
           tg.setValue(cal.enabled).onChange(async (v) => {
-            cal.enabled = v;
+            if (v) {
+              cal.enabled = true;
+              await this.plugin.saveSettings();
+              this.display();
+              return;
+            }
+            // 关闭同步:询问是否同时清空该日历在笔记中的现有日程(iCloud 上保留)
+            const choice = await askChoice(
+              this.app,
+              t("settings.cal.disable.title", { name: cal.name || cal.id }),
+              [
+                { value: "keep", label: t("settings.cal.disable.keep") },
+                { value: "clear", label: t("settings.cal.disable.clear") },
+              ],
+            );
+            if (choice === null) {
+              this.display(); // 取消:回滚开关
+              return;
+            }
+            cal.enabled = false;
             await this.plugin.saveSettings();
+            if (choice === "clear") await this.plugin.clearCalendarLocalEvents(cal);
+            this.display();
           }),
         );
         row.addExtraButton((b) =>
@@ -129,6 +165,20 @@ export class SettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         });
       });
+
+    new Setting(containerEl)
+      .setName(t("settings.reset.name"))
+      .setDesc(t("settings.reset.desc"))
+      .addButton((b) =>
+        b.setButtonText(t("settings.reset.button")).setWarning().onClick(async () => {
+          const c = await askChoice(this.app, t("settings.reset.confirm"), [
+            { value: "reset", label: t("settings.reset.confirmYes") },
+          ]);
+          if (c !== "reset") return;
+          await this.plugin.resetAllSyncData();
+          this.display();
+        }),
+      );
 
     new Setting(containerEl).setName(t("settings.section.appearance")).setHeading();
     {
@@ -302,11 +352,25 @@ export class SettingsTab extends PluginSettingTab {
           searchable: false,
           render: (setting: Setting) => {
             setting.setName(t("settings.password"));
+            let visible = false;
+            let pwText: import("obsidian").TextComponent | undefined;
             setting.addText((x) => {
               x.inputEl.type = "password";
               x.setValue(this.plugin.settings.password).onChange(async (v) => {
                 this.plugin.settings.password = v.trim();
                 await this.plugin.saveSettings();
+              });
+              pwText = x;
+            });
+            setting.addExtraButton((b) => {
+              const paint = () => {
+                b.setIcon(visible ? "eye-off" : "eye").setTooltip(visible ? t("settings.password.hide") : t("settings.password.show"));
+              };
+              paint();
+              b.onClick(() => {
+                visible = !visible;
+                if (pwText) pwText.inputEl.type = visible ? "text" : "password";
+                paint();
               });
             });
           },
@@ -359,6 +423,24 @@ export class SettingsTab extends PluginSettingTab {
         { name: t("settings.defaultReminder"), control: { type: "text", key: "defaultReminderMinutes" } },
         { name: t("settings.security.note.name"), desc: t("settings.security.note.desc") },
         { name: t("settings.debug.name"), control: { type: "toggle", key: "debugLogging" } },
+        {
+          name: t("settings.reset.name"),
+          desc: t("settings.reset.desc"),
+          searchable: false,
+          render: (setting: Setting) => {
+            setting.setName(t("settings.reset.name")).setDesc(t("settings.reset.desc"));
+            setting.addButton((b) =>
+              b.setButtonText(t("settings.reset.button")).setWarning().onClick(async () => {
+                const c = await askChoice(this.app, t("settings.reset.confirm"), [
+                  { value: "reset", label: t("settings.reset.confirmYes") },
+                ]);
+                if (c !== "reset") return;
+                await this.plugin.resetAllSyncData();
+                this.display();
+              }),
+            );
+          },
+        },
         {
           name: t("support.name"),
           desc: t("support.desc"),

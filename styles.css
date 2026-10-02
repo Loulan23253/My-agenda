@@ -74,8 +74,8 @@
 .ag2-strip-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--ag-tint); }
 
 .ag2-search { padding: 0.1em 0 0.55em; }
-.ag2-searchinput { width: 100%; border-radius: 9px; padding: 0.35em 0.8em; background: var(--ag-fill); border: none; font-size: 0.9em; }
-.ag2-searchinput:focus { background: var(--background-primary); box-shadow: 0 0 0 1.5px var(--ag-tint); outline: none; }
+.ag2-searchinput { width: 100%; border-radius: 9px; padding: 0.35em 0.8em; background: var(--ag-fill); border: none !important; box-shadow: none !important; font-size: 0.9em; }
+.ag2-searchinput:focus { background: var(--background-primary); box-shadow: 0 0 0 1.5px var(--ag-tint) !important; outline: none; }
 .ag2-filter { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 0 0.6em; }
 .ag2-chip { cursor: pointer; user-select: none; font-size: 0.8em; padding: 2px 12px; border-radius: 999px; background: var(--ag-fill); color: var(--text-normal); font-weight: 500; }
 .ag2-chip.off { opacity: 0.4; background: transparent; box-shadow: inset 0 0 0 1px var(--ag-sep); }
@@ -275,7 +275,8 @@
 .ag2-discover-list { display: flex; flex-direction: column; gap: 0.25em; margin-bottom: 0.9em; max-height: 18em; overflow-y: auto; }
 .ag2-discover-row { display: flex; gap: 0.6em; align-items: center; padding: 0.35em 0.5em; border-radius: 8px; background: var(--ag-fill); }
 .ag2-discover-row.is-existing { opacity: 0.5; }
-.ag2-discover-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ag2-discover-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 0.45em; }
+.ag2-discover-dot { width: 0.8em; height: 0.8em; border-radius: 50%; flex: 0 0 auto; display: inline-block; }
 
 /* ---- Apple 式事件编辑表单 ---- */
 .ag2-modal .modal-content { width: 24em; max-width: 92vw; box-sizing: border-box; }
@@ -292,7 +293,7 @@
 .ag2-f-dt:focus { outline: none; }
 .ag2-f-sel { border: none; background: transparent; font-size: 0.88em; color: var(--text-normal); text-align: right; max-width: 100%; }
 .ag2-f-wide { }
-.ag2-f-note { width: 100%; box-sizing: border-box; border: 1px solid var(--background-modifier-border); background: var(--background-primary); border-radius: 7px; min-height: 2.1em; max-height: 40vh; overflow-y: auto; font-size: 0.88em; color: var(--text-normal); padding: 0.3em 0.55em; }
+.ag2-f-note { width: 100%; box-sizing: border-box; white-space: pre-wrap; border: 1px solid var(--background-modifier-border); background: var(--background-primary); border-radius: 7px; min-height: 2.1em; max-height: 40vh; overflow-y: auto; font-size: 0.88em; color: var(--text-normal); padding: 0.3em 0.55em; }
 .ag2-f-note:focus { outline: none; border-color: var(--ag-tint); }
 .ag2-f-note-ed:empty::before, .ag2-f-note-ed.is-empty::before { content: attr(data-placeholder); color: var(--text-faint); pointer-events: none; }
 .ag2-f-note-ed:focus::before { content: none; }

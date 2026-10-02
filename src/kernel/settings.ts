@@ -6,6 +6,8 @@ export interface CalendarConfig {
   name: string;
   category: string;
   enabled: boolean;
+  /** Apple 日历颜色(discover 时抓取,#RRGGBB)。 */
+  color?: string;
 }
 
 export interface LastSyncInfo {
@@ -108,15 +110,27 @@ function sanitizeHistory(raw: unknown): { at: string; ok: boolean; msg?: string 
 
 function sanitizeCalendars(raw: unknown): CalendarConfig[] {
   if (!Array.isArray(raw)) return [];
-  return (raw as Record<string, unknown>[])
-    .map((c) => ({
+  const byName = new Map<string, CalendarConfig>();
+  const noName: CalendarConfig[] = [];
+  for (const c of raw as Record<string, unknown>[]) {
+    const cfg: CalendarConfig = {
       id: str(c.id, newCalendarId()),
       url: str(c.url, "").trim(),
       name: str(c.name, ""),
       category: str(c.category, "").trim(),
       enabled: bool(c.enabled, true),
-    }))
-    .filter((c) => c.url);
+      color: str(c.color, "") || undefined,
+    };
+    if (!cfg.url) continue;
+    // 去重:同名日历只保留最后一条。iCloud 中国区迁移会更换域名与日历 ID(URL 不同但同名),
+    // 旧条目(如 .com → .com.cn)同步时会 403,必须淘汰
+    if (cfg.name) {
+      byName.set(cfg.name, cfg);
+      continue;
+    }
+    noName.push(cfg);
+  }
+  return [...byName.values(), ...noName];
 }
 
 function sanitizeLegacyCalendars(r: Record<string, unknown>): CalendarConfig[] {
