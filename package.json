@@ -1,6 +1,6 @@
 {
   "name": "myagenda",
-  "version": "0.10.5",
+  "version": "0.10.11",
   "description": "Two-way iCloud / CalDAV calendar sync — Apple-style day, week & month views, recurring events, drag & drop, daily-note injection and reminders. Your credentials stay on your device.",
   "main": "main.js",
   "scripts": {
