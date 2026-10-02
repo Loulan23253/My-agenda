@@ -291,8 +291,7 @@ export function openEventEditor(
   // plaintext-only 的回车换行显式处理,保证 textContent 保留 
 
   notesInput.addEventListener("keydown", (e) => {
-    const ke = e as KeyboardEvent;
-    if (ke.key === "Enter" && !ke.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       window.document.execCommand("insertLineBreak");
     }
