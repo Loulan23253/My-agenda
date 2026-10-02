@@ -65,6 +65,8 @@ interface ScanResult {
   tokens: Record<string, string | undefined>;
   /** 远端已不存在的日历(404,通常是被用户在 Apple 日历中删除)。 */
   missing: CalendarRoute[];
+  /** 本轮做过全量 REPORT 的日历 id:只有这些日历的"缺席"才可信为已删除。 */
+  complete: Set<string>;
 }
 
 
@@ -96,6 +98,7 @@ export class SyncEngine {
     const deletedHrefs = new Set<string>();
     const tokens: Record<string, string | undefined> = {};
     const missing: CalendarRoute[] = [];
+    const complete = new Set<string>();
 
     for (const route of deps.routes) {
       const token = deps.journal.calendars[route.id]?.syncToken;
@@ -190,12 +193,13 @@ export class SyncEngine {
           continue;
         }
         tokens[route.id] = undefined;
+        complete.add(route.id);
         for (const item of parseMultistatusCalendarData(res.text, route.url)) {
           byUid.set(item.event.id, item);
         }
       }
     }
-    return { byUid, deletedHrefs, tokens, missing };
+    return { byUid, deletedHrefs, tokens, missing, complete };
   }
 
   // ── 主流程 ──
@@ -279,8 +283,14 @@ export class SyncEngine {
         continue;
       }
 
-      const remoteDeleted = !remoteItem;
-      const remoteDirty = remoteDeleted || remoteItem.etag !== entry.etag;
+      // "缺席=已删除"只在事件所属日历本轮做过全量拉取时成立;
+      // 增量轮只返回有变化的资源,未变化的事件缺席是正常的,绝不能清账本
+      const entryRoute = routeById(entry.calendarId);
+      const canTrustAbsence = !!entryRoute && remote.complete.has(entryRoute.id);
+      const remoteItemExists = remoteItem !== undefined;
+      const remoteDeleted = canTrustAbsence && !remoteItemExists;
+      const remoteChanged = remoteItemExists && remoteItem.etag !== entry.etag;
+      const remoteDirty = remoteDeleted || remoteChanged;
       const localDirty = (await contentFingerprint(ev)) !== entry.pushedFingerprint;
 
       if (localDirty && remoteDirty) {
@@ -288,7 +298,7 @@ export class SyncEngine {
         const pick = await deps.askConflict({
           title: ev.title,
           mine: describe(ev),
-          theirs: remoteDeleted ? t("sync.serverDeleted") : describe(remoteItem.event),
+          theirs: remoteDeleted ? t("sync.serverDeleted") : describe(remoteItem?.event ?? ev),
         });
         const route = routeById(entry.calendarId);
         if (!route) continue; // 该日历已停用:事件暂停同步(本地与远端数据都保留)
@@ -296,13 +306,13 @@ export class SyncEngine {
           if (remoteDeleted) {
             toPush.push({ ev, route, isNew: true }); // 服务器没了 → 重新创建
           } else {
-            toPush.push({ ev, route, ifMatch: remoteItem.etag, isNew: false });
+            toPush.push({ ev, route, ifMatch: remoteItem?.etag, isNew: false });
           }
         } else if (remoteDeleted) {
           dropLocally.add(ev.id);
           journalRemove(deps.journal, ev.id);
           summary.deleted++;
-        } else {
+        } else if (remoteItem) {
           toApply.push(remoteItem.event);
           journalPut(deps.journal, ev.id, {
             ...entry,
@@ -328,6 +338,7 @@ export class SyncEngine {
         } else {
           dropLocally.add(ev.id);
           journalRemove(deps.journal, ev.id);
+          summary.deleted++;
         }
       }
     }
@@ -361,13 +372,25 @@ export class SyncEngine {
       else journalRemove(deps.journal, id);
     }
 
+    // 服务器已删除的事件:本地块真正移除(否则下轮无账本会被当新增复活)
+    if (dropLocally.size) {
+      await deps.notes.removeByUids(dropLocally);
+      for (let i = local.length - 1; i >= 0; i--) if (dropLocally.has(local[i].id)) local.splice(i, 1);
+      for (const id of dropLocally) localIds.delete(id);
+    }
+
     // ④ 先落盘"拉取/收养"(本地写),再发布服务器写
     // 分类跟随日历映射:日历配置了分类时,覆盖事件自带的 VEVENT CATEGORIES,
-    // 保证"上课"日历下的事件始终显示为该日历的分类,不被历史 CATEGORIES 污染
+    // 保证"上课"日历下的事件始终显示为该日历的分类,不被历史 CATEGORIES 污染。
+    // 覆盖后同步回写指纹,避免下一轮因指纹差异产生冗余推送
     for (const ev of toApply) {
       const entry = deps.journal.events[ev.id];
       const route = entry ? routeById(entry.calendarId) : undefined;
-      if (route?.category?.trim()) ev.category = route.category.trim();
+      const cat = route?.category?.trim();
+      if (cat && ev.category !== cat) {
+        ev.category = cat;
+        if (entry) entry.pushedFingerprint = await contentFingerprint(ev);
+      }
     }
     if (toApply.length) {
       const applied = new Map(toApply.map((x) => [x.id, x]));
