@@ -167,10 +167,11 @@ export class SettingsTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
+      .setClass("ag2-reset-setting")
       .setName(t("settings.reset.name"))
       .setDesc(t("settings.reset.desc"))
       .addButton((b) =>
-        b.setButtonText(t("settings.reset.button")).setDestructive().onClick(async () => {
+        b.setButtonText(t("settings.reset.button")).onClick(async () => {
           const c = await askChoice(this.app, t("settings.reset.confirm"), [
             { value: "reset", label: t("settings.reset.confirmYes") },
           ]);
@@ -430,7 +431,7 @@ export class SettingsTab extends PluginSettingTab {
           render: (setting: Setting) => {
             setting.setName(t("settings.reset.name")).setDesc(t("settings.reset.desc"));
             setting.addButton((b) =>
-              b.setButtonText(t("settings.reset.button")).setDestructive().onClick(async () => {
+              b.setButtonText(t("settings.reset.button")).onClick(async () => {
                 const c = await askChoice(this.app, t("settings.reset.confirm"), [
                   { value: "reset", label: t("settings.reset.confirmYes") },
                 ]);
