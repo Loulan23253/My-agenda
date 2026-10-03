@@ -312,7 +312,7 @@ export function openEventEditor(
       isAllDay: allday.checked,
       category: catValue || undefined,
       place: placeInput.value.trim() || undefined,
-      notes: (notesInput.textContent || "").trim() || undefined,
+      notes: (notesInput.innerText || "").trim() || undefined,
       reminderMinutes: remindInput.value
         ? remindInput.value.split(",").map((x) => Number.parseInt(x.trim(), 10)).filter((n) => Number.isFinite(n))
         : undefined,
@@ -328,7 +328,11 @@ export function openEventEditor(
       .createEl("button", { cls: "ag2-btn ag2-btn-ghost ag2-danger", text: t("editor.delete") })
       .addEventListener("click", () => {
         void (async () => {
-          new Notice(t("editor.confirmDelete"));
+          // 删除会同步到服务器,必须显式确认(原 Notice 提示形同虚设)
+          const ok = await askChoice(app, t("editor.confirmDelete"), [
+            { value: "yes", label: t("editor.delete") },
+          ]);
+          if (ok !== "yes") return;
           await onDelete(existing);
           modal.close();
         })();

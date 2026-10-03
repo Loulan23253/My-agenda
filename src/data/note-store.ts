@@ -128,10 +128,8 @@ export class MonthlyNoteStore {
         return true;
       });
       if (kept.length !== blocks.length) {
-        await this.io.writeText(path, serializeMonthlyNote(preamble, kept.map((b) => {
-          const ev = blockToEvent(b);
-          return ev ? serializeBlock(ev, b) : serializeRawBlock(b);
-        })));
+        // 删除操作只移除目标块,兄弟块一律原样保留(serializeBlock 的有损重写会损坏手写内容)
+        await this.io.writeText(path, serializeMonthlyNote(preamble, kept.map((b) => serializeRawBlock(b))));
       }
     }
     return removed;

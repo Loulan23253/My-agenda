@@ -72,7 +72,7 @@ export function parseMonthlyNote(text: string): ParsedMonthlyNote {
 }
 
 /** v2 字段名(与 v1 的 uid/start/end/all_day 有意不同,便于区分来源)。 */
-const V2_KEYS = ["id", "starts", "ends", "allday", "tz", "place", "category", "organizer", "attendees", "url", "repeat", "skip", "remind"] as const;
+const V2_KEYS = ["id", "starts", "ends", "allday", "tz", "place", "category", "organizer", "attendees", "url", "repeat", "skip", "remind", "status"] as const;
 /** v1 遗留字段名 → v2 含义(迁移器只读取,不再写回)。 */
 const V1_ALIASES: Record<string, string> = {
   uid: "id",
@@ -114,10 +114,11 @@ export function blockToEvent(block: NoteBlock): CalendarEvent | null {
   const allday = allDayRaw !== undefined ? allDayRaw === "true" : !starts.includes("T");
   const ev: CalendarEvent = {
     id,
-    title: block.heading.replace(/^\d{1,2}:\d{2}(–\d{1,2}:\d{2})?\s*/, "").trim() || block.heading.trim(),
+    title: block.heading.replace(/^\d{1,2}:\d{2}([-–—]\d{1,2}:\d{2})?\s*/, "").trim() || block.heading.trim(),
     startsAt: starts,
     // 历史数据可能存有"结束<=开始"(跨午夜取模 bug):加载即归一化,渲染与推送都用合法值
     endsAt: ends && !allday && ends <= starts ? normalizeEnd(starts, ends) : ends,
+    status: readField(block.fields, "status") || undefined,
     isAllDay: allday,
   };
   const tz = readField(block.fields, "tz");
@@ -187,9 +188,10 @@ export function serializeBlock(ev: CalendarEvent, existing?: NoteBlock): string 
     if (!(k in fields) && !META_KEYS.has(k) && !passthrough.includes(k)) passthrough.push(k);
   }
   const heading = eventHeading(ev);
+  if (ev.status) fields["status"] = ev.status;
   const fieldLines = order.map((k) => `- ${k}:: ${fields[k]}`);
   for (const k of passthrough) fieldLines.push(`- ${k}:: ${existing!.fields[k]}`);
-  const prose = ev.notes ? `\n\n${escapeText(ev.notes).replace(/\\n/g, "\n")}` : "";
+  const prose = ev.notes ? `\n\n${escapeText(ev.notes)}` : "";
   let out = `## ${heading}`;
   if (fieldLines.length) out += `\n${fieldLines.join("\n")}`;
   out += prose;

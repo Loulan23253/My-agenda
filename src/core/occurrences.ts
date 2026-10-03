@@ -78,6 +78,17 @@ export function expandOccurrences(events: CalendarEvent[], from: Date, to: Date)
     const excludedDay = new Set([...excludedFull].map((s) => s.slice(0, 10)));
     const dtstart = toIcalTime(ev.startsAt, ev.isAllDay);
     const duration = ev.endsAt ? toIcalTime(ev.endsAt, ev.isAllDay).subtractDate(dtstart) : null;
+    // DTSTART 远早于窗口时按频率粗跳(保守向下取整,停在窗口前留余量),
+    // 避免 10000 次 guard 耗尽导致老重复事件静默消失;iterator 从停点精细补齐
+    const daysBehind = (from.getTime() - dtstart.toJSDate().getTime()) / 86_400_000;
+    if (daysBehind > 400) {
+      const freq = (ev.repeats?.rule.toUpperCase().match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/) ?? [])[1];
+      if (freq) {
+        const chunk: Record<string, number> = { DAILY: 28, WEEKLY: 196, MONTHLY: 335, YEARLY: 3650 };
+        const steps = Math.max(0, Math.floor(daysBehind / (chunk[freq] ?? 28)) - 2);
+        for (let i = 0; i < steps; i++) dtstart.day += chunk[freq] ?? 28;
+      }
+    }
     let iter: ICAL.RecurIterator;
     try {
       iter = ICAL.Recur.fromString(ev.repeats.rule).iterator(dtstart);

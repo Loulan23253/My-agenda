@@ -12,6 +12,7 @@ export function parseIcsToEvents(icsText: string, idPrefix = ""): CalendarEvent[
     const uid = ev.uid;
     if (!uid) continue;
     const start = ev.startDate;
+    if (!start) continue; // 缺 DTSTART 的坏块:跳过,不拖垮整轮解析
     const end = ev.endDate;
     const isAllDay = start.isDate;
     const ev2: CalendarEvent = {
@@ -48,8 +49,13 @@ export function parseIcsToEvents(icsText: string, idPrefix = ""): CalendarEvent[
     if (ex.length) {
       const dates: string[] = [];
       for (const prop of ex) {
-        const vals = prop.getValues();
-        for (const v of vals as unknown[]) {
+        let vals: unknown[] = [];
+        try {
+          vals = prop.getValues() as unknown[];
+        } catch {
+          continue; // 毒 EXDATE(如值类型与 DTSTART 不符):跳过该属性,不拖垮整轮解析
+        }
+        for (const v of vals) {
           if (v && typeof (v as ICAL.Time).toString === "function") {
             dates.push(normalizeIso((v as ICAL.Time).toString(), isAllDay));
           }
@@ -94,7 +100,18 @@ function personFromProperty(prop: ICAL.Property): string {
 /** ICAL.Time → 本地墙钟 ISO(浮时区约定,与存储格式一致)。 */
 function icalToLocalIso(t: ICAL.Time): string {
   const p = (n: number) => String(n).padStart(2, "0");
-  return `${t.year}-${p(t.month)}-${p(t.day)}T${p(t.hour)}:${p(t.minute)}:${p(t.second)}`;
+  // 跨时区换算:UTC(Z)或带 TZID 的事件转为本地墙钟,否则显示错 8-13 小时
+  let local = t;
+  try {
+    if (t.zone === ICAL.Timezone.utcTimezone) {
+      local = t.convertToZone(ICAL.Timezone.localTimezone);
+    } else if (t.zone && t.zone !== ICAL.Timezone.localTimezone && t.zone.tzid) {
+      local = ICAL.Timezone.convert_time(t, t.zone, ICAL.Timezone.localTimezone);
+    }
+  } catch {
+    /* 换算失败按原值兜底 */
+  }
+  return `${local.year}-${p(local.month)}-${local.day.toString().padStart(2, "0")}T${p(local.hour)}:${p(local.minute)}:${p(local.second)}`;
 }
 
 function normalizeIso(s: string, isAllDay: boolean): string {

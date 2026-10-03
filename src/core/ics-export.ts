@@ -57,17 +57,24 @@ function eventLines(ev: CalendarEvent): string[] {
   if (ev.category) lines.push(`CATEGORIES:${icsEscape(ev.category)}`);
   if (ev.organizer) {
     const { name, email } = splitPerson(ev.organizer);
-    lines.push(fold(`ORGANIZER${name ? `;CN=${icsEscape(name)}` : ""}:mailto:${email || "unknown"}`));
+    if (email) lines.push(fold(`ORGANIZER${name ? `;CN=${icsEscape(name)}` : ""}:mailto:${email}`));
   }
   for (const a of ev.attendees ?? []) {
     const { name, email } = splitPerson(a);
-    lines.push(fold(`ATTENDEE${name ? `;CN=${icsEscape(name)}` : ""}:mailto:${email || "unknown"}`));
+    if (email) lines.push(fold(`ATTENDEE${name ? `;CN=${icsEscape(name)}` : ""}:mailto:${email}`));
   }
   if (ev.url) lines.push(`URL:${icsEscape(ev.url)}`);
   if (ev.status) lines.push(`STATUS:${ev.status.toUpperCase()}`);
   if (ev.repeats) lines.push(`RRULE:${ev.repeats.rule}`);
   for (const x of ev.skippedDates ?? []) {
-    lines.push(`EXDATE:${x.replace(/[-:]/g, "").slice(0, ev.isAllDay ? 8 : 15)}`);
+    // RFC 5545:EXDATE 值类型必须与 DTSTART 一致(全天=DATE,定时=DATE-TIME 带原时刻)
+    if (ev.isAllDay) {
+      lines.push(`EXDATE;VALUE=DATE:${x.replace(/[-:]/g, "").slice(0, 8)}`);
+    } else {
+      const date = x.slice(0, 10).replace(/-/g, "");
+      const time = x.length >= 16 ? x.slice(11, 16).replace(":", "") : "000000";
+      lines.push(`EXDATE:${date}T${time}00`);
+    }
   }
   for (const m of ev.reminderMinutes ?? []) {
     lines.push("BEGIN:VALARM", "ACTION:DISPLAY", `TRIGGER:-PT${Math.abs(m)}M`, "END:VALARM");

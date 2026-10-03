@@ -18,6 +18,7 @@ export async function contentFingerprint(ev: CalendarEvent): Promise<string> {
     a: [...(ev.attendees ?? [])].sort(),
     u: ev.url ?? "",
     r: ev.repeats?.rule ?? "",
+    st: ev.status ?? "",
     x: [...(ev.skippedDates ?? [])].sort(),
     m: [...(ev.reminderMinutes ?? [])].sort((a, b) => a - b),
   };
